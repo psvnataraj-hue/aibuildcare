@@ -1,10 +1,16 @@
 from functools import lru_cache
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Repo-root .env, resolved from this file so it loads regardless of the
+# process working directory (backend/, repo root, or Render).
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_prefix="AIBUILDCARE_",
         extra="ignore",
     )

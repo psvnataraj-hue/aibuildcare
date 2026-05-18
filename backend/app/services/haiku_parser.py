@@ -118,7 +118,8 @@ _SYSTEM = (
     "Return ONLY a JSON object with keys: unit_number (string or null), "
     f"category (one of {CATEGORIES}), priority (one of "
     '["normal","high","urgent"]), acknowledgement (a short, warm, '
-    "human-sounding confirmation, no ticket number). No prose, JSON only."
+    "human-sounding confirmation written in the SAME language and script "
+    "the resident used, with no ticket number). No prose, JSON only."
 )
 
 
