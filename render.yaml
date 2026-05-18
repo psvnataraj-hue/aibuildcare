@@ -9,19 +9,19 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      - key: ENVIRONMENT
+      - key: AIBUILDCARE_ENVIRONMENT
         value: production
-      - key: DATABASE_URL
+      - key: AIBUILDCARE_DATABASE_URL
         value: ./data/complaints.db
-      - key: JWT_SECRET
+      - key: AIBUILDCARE_JWT_SECRET
         generateValue: true
-      - key: ANTHROPIC_API_KEY
+      - key: AIBUILDCARE_ANTHROPIC_API_KEY
         sync: false
-      - key: TWILIO_ACCOUNT_SID
+      - key: AIBUILDCARE_TWILIO_ACCOUNT_SID
         sync: false
-      - key: TWILIO_AUTH_TOKEN
+      - key: AIBUILDCARE_TWILIO_AUTH_TOKEN
         sync: false
-      - key: SENDGRID_API_KEY
+      - key: AIBUILDCARE_SENDGRID_API_KEY
         sync: false
 
   - type: web
