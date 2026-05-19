@@ -49,7 +49,11 @@ class Settings(BaseSettings):
     # gracefully degrades where torch/RAM is unavailable (e.g. Render free).
     whisper_model: str = "base"
 
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "https://aibuildcare-web.onrender.com,"
+        "https://aibuildcare.carimotech.in"
+    )
 
 
 @lru_cache
