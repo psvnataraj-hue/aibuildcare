@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   api,
@@ -15,6 +15,13 @@ const contractors = ref<Contractor[]>([])
 const msg = ref('')
 const pickContractor = ref<number | null>(null)
 const error = ref('')
+
+const photos = computed(() =>
+  (c.value?.media_urls || '')
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean)
+)
 
 const STATUSES = [
   'received',
@@ -73,7 +80,28 @@ async function changeStatus(s: string) {
         >· {{ c.category }} · {{ c.unit_number || 'unknown unit' }}</span
       >
     </h1>
-    <p class="text-sm text-slate-500 mb-4">{{ c.raw_text }}</p>
+    <p class="text-sm text-slate-500 mb-2">{{ c.raw_text }}</p>
+    <span
+      v-if="c.detected_language"
+      class="inline-block text-xs bg-slate-200 rounded-full px-2 py-0.5 mb-4"
+      >🌐 {{ c.detected_language }}</span
+    >
+
+    <div v-if="photos.length" class="flex flex-wrap gap-3 mb-4">
+      <a
+        v-for="(url, i) in photos"
+        :key="i"
+        :href="url"
+        target="_blank"
+        rel="noopener"
+      >
+        <img
+          :src="url"
+          class="h-32 w-32 object-cover rounded-lg border shadow-sm hover:opacity-90"
+          alt="complaint photo"
+        />
+      </a>
+    </div>
 
     <div class="grid md:grid-cols-3 gap-4">
       <div class="md:col-span-2 bg-white rounded-xl shadow p-4">

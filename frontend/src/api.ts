@@ -45,6 +45,8 @@ export interface Complaint {
   raw_text: string
   acknowledgement: string | null
   contractor_id: number | null
+  media_urls: string | null
+  detected_language: string | null
   created_at: string
   updated_at: string
   messages?: Message[]
