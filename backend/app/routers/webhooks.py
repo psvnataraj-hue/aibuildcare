@@ -1,11 +1,21 @@
+import logging
 import re
 
 from fastapi import APIRouter, Request
 
+from ..config import get_settings
+from ..integrations import r2_client
 from ..services import complaint_service as svc
-from ..services import audio_transcriber, media_intake
+from ..services import audio_transcriber, media_intake, tts
 from ..services.ws_hub import hub
-from ..services.notify import send_whatsapp, send_sms, send_email
+from ..services.notify import (
+    send_whatsapp,
+    send_whatsapp_media,
+    send_sms,
+    send_email,
+)
+
+log = logging.getLogger("aibuildcare.webhooks")
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -36,6 +46,24 @@ def _with_audio(body: str, audio: list[tuple[bytes, str]]) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
+def _maybe_voice_reply(phone: str, c: dict) -> None:
+    """Best-effort: voice the ack via Sarvam TTS -> R2 -> WhatsApp media.
+    Every failure is swallowed; the text ack was already sent."""
+    if not get_settings().whatsapp_voice_reply_enabled:
+        return
+    try:
+        out = tts.synthesize(c["acknowledgement"], c.get("detected_language"))
+        if not out:
+            return
+        data, ext, ctype = out
+        url = r2_client.upload_bytes(data, ctype, f".{ext}")
+        if not url:
+            return
+        send_whatsapp_media(phone, url)
+    except Exception as exc:  # never break the webhook response
+        log.warning("voice reply skipped: %s", exc)
+
+
 @router.post("/webhooks/twilio/whatsapp")
 async def twilio_whatsapp(request: Request) -> dict:
     form = dict(await request.form())
@@ -49,6 +77,7 @@ async def twilio_whatsapp(request: Request) -> dict:
     await hub.broadcast("complaint.created", c)
     if phone:
         send_whatsapp(phone, c["acknowledgement"])
+        _maybe_voice_reply(phone, c)
     return {"ok": True, "ticket": c["ticket_number"]}
 
 

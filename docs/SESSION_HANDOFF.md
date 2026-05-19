@@ -1,7 +1,31 @@
 # AIBuildCare — Session Handoff (resume after break)
 
-_Last updated: 2026-05-19 (session 2 close). Repo:
-`psvnataraj-hue/aibuildcare`, branch `main`. Latest commit `c92c9ab`._
+_Last updated: 2026-05-19 (session 3 close). Repo:
+`psvnataraj-hue/aibuildcare`, branch `main`._
+
+## SESSION 3 CLOSE — what changed
+- **Prod Supabase cleared to a clean pilot slate**: `complaints = 0`;
+  `categories(7)`, `contractors(34)`, `system_config(2)` preserved.
+  Reusable guarded tool: `scripts/clear_test_tickets.py` (self-aborts
+  unless the table is exactly the 5 named test tickets).
+- **Sarvam TTS -> WhatsApp voice reply SHIPPED** (`backend/app/services/
+  tts.py` + `notify.send_whatsapp_media` + `_maybe_voice_reply` in
+  `webhooks.py`). MP3 from Sarvam (`output_audio_codec=mp3`) -> R2 ->
+  Twilio WhatsApp media; **no ffmpeg/transcoding**. Text ack is always
+  sent first; voice note is an additive best-effort message that
+  silently skips on any failure (no key / TTS error / R2 off / Twilio
+  off). Reuses `AIBUILDCARE_SARVAM_API_KEY`.
+- Tests **129/129** (112 + 17 new in `tests/test_voice_reply.py`).
+- **Go-live needs (no code, just env on Render `aibuildcare-api`):**
+  `AIBUILDCARE_SARVAM_API_KEY` (already set), R2_* vars (already set
+  for photos), live Twilio WhatsApp number. Optional overrides:
+  `AIBUILDCARE_SARVAM_TTS_MODEL` (def `bulbul:v2`),
+  `_SARVAM_TTS_SPEAKER` (def `anushka`),
+  `_WHATSAPP_VOICE_REPLY_ENABLED` (def `true`). Then Manual Deploy.
+- Google Form intake: backend ready; user has the create-Form +
+  Apps Script + trigger steps (in this session's chat + DEPLOYMENT.md
+  section 4). Pending: user creates the Form, submits one real test,
+  asks Claude to scoped-delete it.
 
 ## SESSION 2 CLOSE — what changed
 - **Sarvam AI speech-to-text LIVE & verified** across Hindi, Telugu,

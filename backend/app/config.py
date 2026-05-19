@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     sarvam_api_key: str = ""
     sarvam_model: str = "saarika:v2.5"
 
+    # Sarvam Text-to-Speech (bulbul) for the WhatsApp voice-note ack.
+    # Reuses sarvam_api_key. Text ack is ALWAYS sent regardless; this
+    # adds an extra audio message. Empty key / failure -> silently skip.
+    sarvam_tts_model: str = "bulbul:v2"
+    sarvam_tts_speaker: str = "anushka"
+    whatsapp_voice_reply_enabled: bool = True
+
     # Smart auto-assignment on complaint create (Phase 4.5). On in prod;
     # the existing test suite disables it so per-test status assertions
     # stay meaningful; the dedicated auto-assign tests opt back in.

@@ -32,6 +32,39 @@ def send_whatsapp(to_phone: str, body: str) -> bool:
         return False
 
 
+def send_whatsapp_media(
+    to_phone: str, media_url: str, body: str = ""
+) -> bool:
+    """Send a WhatsApp message carrying media (e.g. an MP3 voice note).
+    media_url must be publicly fetchable by Twilio (R2 public URL)."""
+    s = get_settings()
+    if not (s.twilio_account_sid and s.twilio_auth_token):
+        log.info(
+            "twilio not configured; would WhatsApp media %s: %s",
+            to_phone, media_url,
+        )
+        return False
+    try:
+        from twilio.rest import Client
+
+        client = Client(s.twilio_account_sid, s.twilio_auth_token)
+        wa_from = (
+            f"whatsapp:{s.twilio_whatsapp_number}"
+            if s.twilio_whatsapp_number
+            else s.twilio_whatsapp_from
+        )
+        client.messages.create(
+            from_=wa_from,
+            to=f"whatsapp:{to_phone}",
+            body=body,
+            media_url=[media_url],
+        )
+        return True
+    except Exception as exc:  # media delivery must not break intake
+        log.warning("whatsapp media send failed: %s", exc)
+        return False
+
+
 def send_sms(to_phone: str, body: str) -> bool:
     s = get_settings()
     if not (s.twilio_account_sid and s.twilio_auth_token):
