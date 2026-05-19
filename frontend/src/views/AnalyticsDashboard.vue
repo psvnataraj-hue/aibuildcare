@@ -95,7 +95,7 @@ const chartOpts = {
   scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
 }
 
-function dl(name: string, rows: string[][]) {
+function dl(name: string, rows: (string | number)[][]) {
   const csv = rows
     .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\n')

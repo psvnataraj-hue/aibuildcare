@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
@@ -29,13 +30,19 @@ const badge = cva(
     defaultVariants: { variant: 'default' },
   }
 )
+// callers pass raw API strings (c.status / c.priority typed as string);
+// unknown values fall back to the default badge styling.
+type BadgeVariant = VariantProps<typeof badge>['variant']
 const props = defineProps<{
-  variant?: VariantProps<typeof badge>['variant']
+  variant?: string | null
 }>()
+const safeVariant = computed<BadgeVariant>(
+  () => (props.variant as BadgeVariant) || 'default'
+)
 </script>
 
 <template>
-  <span :class="cn(badge({ variant: props.variant || 'default' }))">
+  <span :class="cn(badge({ variant: safeVariant }))">
     <slot />
   </span>
 </template>
