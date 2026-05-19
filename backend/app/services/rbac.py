@@ -1,0 +1,66 @@
+"""Role-based access control — single source of truth.
+
+The permission matrix is the spec's Part 1.2. Every protected endpoint
+declares the permission it needs (Foundation F3); no ad-hoc per-endpoint
+role checks. `admin` is the pilot superuser (the seeded operator) and
+implicitly holds every permission within its society.
+"""
+from __future__ import annotations
+
+# --- permissions (matrix columns) ------------------------------------
+FILE_COMPLAINT = "file_complaint"
+VIEW_OWN = "view_own"
+VIEW_ALL = "view_all"
+ASSIGN = "assign"
+RESOLVE = "resolve"
+ESCALATE = "escalate"
+AUTHORIZE_ENFORCEMENT = "authorize_enforcement"  # fines / clamping
+MODIFY_STAFF = "modify_staff"                    # staff & contractors
+MODIFY_CONFIG = "modify_config"                  # society config
+APPROVE_REPORTS = "approve_reports"
+VIEW_FINANCIAL = "view_financial"
+
+ALL_PERMISSIONS: frozenset[str] = frozenset({
+    FILE_COMPLAINT, VIEW_OWN, VIEW_ALL, ASSIGN, RESOLVE, ESCALATE,
+    AUTHORIZE_ENFORCEMENT, MODIFY_STAFF, MODIFY_CONFIG, APPROVE_REPORTS,
+    VIEW_FINANCIAL,
+})
+
+# --- roles (spec Part 1.1) -------------------------------------------
+ROLES: frozenset[str] = frozenset({
+    "resident", "staff", "contractor", "manager", "sr_manager",
+    "secretary", "chairman", "committee_member", "enforcement_officer",
+    "viewer", "admin",
+})
+
+_MANAGER = {
+    FILE_COMPLAINT, VIEW_OWN, VIEW_ALL, ASSIGN, RESOLVE, ESCALATE,
+    MODIFY_STAFF,
+}
+_LEADER = _MANAGER | {  # sr_manager / secretary / chairman
+    AUTHORIZE_ENFORCEMENT, MODIFY_CONFIG, APPROVE_REPORTS, VIEW_FINANCIAL,
+}
+
+ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
+    "resident": frozenset({FILE_COMPLAINT, VIEW_OWN}),
+    "staff": frozenset({FILE_COMPLAINT, VIEW_OWN, RESOLVE}),
+    "contractor": frozenset({VIEW_OWN, RESOLVE}),
+    "manager": frozenset(_MANAGER),
+    "sr_manager": frozenset(_LEADER),
+    "secretary": frozenset(_LEADER),
+    "chairman": frozenset(_LEADER),
+    # committee: decide/approve but not modify staff/config (spec matrix)
+    "committee_member": frozenset({
+        FILE_COMPLAINT, VIEW_OWN, VIEW_ALL, ASSIGN, RESOLVE, ESCALATE,
+        AUTHORIZE_ENFORCEMENT, APPROVE_REPORTS, VIEW_FINANCIAL,
+    }),
+    "enforcement_officer": frozenset({
+        FILE_COMPLAINT, VIEW_OWN, VIEW_ALL, RESOLVE,
+    }),
+    "viewer": frozenset({VIEW_ALL}),  # read-only audit
+    "admin": ALL_PERMISSIONS,         # pilot superuser
+}
+
+
+def has_permission(role: str | None, permission: str) -> bool:
+    return permission in ROLE_PERMISSIONS.get(role or "", frozenset())

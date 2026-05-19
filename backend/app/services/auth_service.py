@@ -36,7 +36,8 @@ def user_from_token(token: str) -> dict | None:
         return None
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT id, email, full_name, role FROM users WHERE email = ?",
+            "SELECT id, email, full_name, role, society_id "
+            "FROM users WHERE email = ?",
             (email,),
         ).fetchone()
         return dict(row) if row else None
