@@ -110,8 +110,10 @@ table. Production seed: 7 categories, 34 rated contractors.
 9. **SMS channel is unproven & deferred** — code complete and
    unit-tested, but never exercised against a real provider; India SMS
    additionally blocked on TRAI DLT registration. Not a pilot channel.
-10. **Voice reply (Sarvam TTS → WhatsApp)** — implemented + 17 unit
-   tests; live verification pending Twilio WhatsApp number.
+10. **Voice reply (Sarvam TTS → WhatsApp)** — ✅ **live-verified
+   end-to-end** on real WhatsApp in Hindi & Tamil (text + same-language
+   voice note). Modality-aware + society-configurable
+   (`whatsapp_voice_reply_mode`: off/on_audio/always).
 11. **Staff-facing summaries** — parser emits per-configured-language
    complaint summaries for officials who don't read the resident's
    language (`official_summary_languages`, default Hindi).
