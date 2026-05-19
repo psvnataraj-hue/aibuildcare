@@ -60,6 +60,23 @@ const filtered = computed(() =>
   })
 )
 
+const page = ref(Number(route.query.page) || 1)
+const perPage = ref(Number(route.query.per_page) || 10)
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filtered.value.length / perPage.value))
+)
+const paged = computed(() => {
+  if (page.value > totalPages.value) page.value = 1
+  const s = (page.value - 1) * perPage.value
+  return filtered.value.slice(s, s + perPage.value)
+})
+const rangeText = computed(() => {
+  const n = filtered.value.length
+  if (!n) return '0'
+  const s = (page.value - 1) * perPage.value + 1
+  return `${s}-${Math.min(s + perPage.value - 1, n)} of ${n}`
+})
+
 onMounted(() => {
   load()
   ws = openWS(() => load())
@@ -136,9 +153,41 @@ onUnmounted(() => ws?.close())
     </div>
 
     <Spinner v-if="loading" />
-    <div v-else-if="filtered.length" class="grid sm:grid-cols-2 gap-3">
-      <ComplaintCard v-for="c in filtered" :key="c.id" :c="c" />
-    </div>
+    <template v-else-if="filtered.length">
+      <div class="grid sm:grid-cols-2 gap-3">
+        <ComplaintCard v-for="c in paged" :key="c.id" :c="c" />
+      </div>
+      <div
+        class="flex items-center justify-between flex-wrap gap-3 pt-2 text-sm"
+      >
+        <span class="text-muted-foreground">Showing {{ rangeText }}</span>
+        <div class="flex items-center gap-2">
+          <select
+            v-model.number="perPage"
+            class="h-10 bg-card border rounded-lg px-2"
+          >
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+          <button
+            class="h-10 px-3 rounded-lg border disabled:opacity-40 hover:bg-secondary"
+            :disabled="page <= 1"
+            @click="page--"
+          >
+            Prev
+          </button>
+          <span class="px-2">{{ page }} / {{ totalPages }}</span>
+          <button
+            class="h-10 px-3 rounded-lg border disabled:opacity-40 hover:bg-secondary"
+            :disabled="page >= totalPages"
+            @click="page++"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </template>
     <Card v-else>
       <p class="text-center text-muted-foreground py-6">
         No complaints match · कोई शिकायत नहीं
