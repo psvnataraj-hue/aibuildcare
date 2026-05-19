@@ -1,9 +1,24 @@
+import re
+
 from fastapi import APIRouter, Request
 
 from ..services import complaint_service as svc
 from ..services import audio_transcriber, media_intake
 from ..services.ws_hub import hub
 from ..services.notify import send_whatsapp, send_sms, send_email
+
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _email_addr(raw: str) -> str:
+    """'Name <a@b.com>' / 'a@b.com' -> 'a@b.com' (or '')."""
+    m = _EMAIL_RE.search(raw or "")
+    return m.group(0) if m else ""
+
+
+def _strip_html(html: str) -> str:
+    return re.sub(r"\s+", " ", _TAG_RE.sub(" ", html or "")).strip()
 
 router = APIRouter(tags=["webhooks"])
 
@@ -74,14 +89,48 @@ async def google_form(request: Request) -> dict:
     return {"ok": True, "ticket": c["ticket_number"]}
 
 
-@router.post("/webhooks/sendgrid/inbound-email")
-async def sendgrid_inbound(request: Request) -> dict:
-    form = await request.form()
-    sender = str(form.get("from", "")).strip()
-    text = str(form.get("text") or form.get("subject") or "")
-    c = svc.create_complaint(text, channel="email", reporter_email=sender)
+async def _handle_inbound_email(request: Request) -> dict:
+    """Shared SendGrid Inbound Parse handler."""
+    form = dict(await request.form())
+    sender = _email_addr(str(form.get("from", "")))
+    subject = str(form.get("subject", "")).strip()
+    body = str(form.get("text", "")).strip()
+    if not body:
+        body = _strip_html(str(form.get("html", "")))
+    # subject often carries the gist (e.g. "5B AC kharab hai")
+    raw = (f"{subject}. {body}" if subject and body else subject or body
+           or "[email with no body]")
+    c = svc.create_complaint(raw, channel="email", reporter_email=sender)
     await hub.broadcast("complaint.created", c)
     if sender:
-        send_email(sender, f"Complaint {c['ticket_number']}",
-                   c["acknowledgement"])
+        lines = [c["acknowledgement"], "", f"Ticket: {c['ticket_number']}"]
+        if c.get("contractor_id"):
+            con = svc.get_contractor(c["contractor_id"])
+            if con:
+                lines.append(f"Assigned to: {con['name']}")
+        if c.get("estimated_completion_date"):
+            lines.append(
+                f"Estimated completion: {c['estimated_completion_date']}"
+            )
+        if not c.get("unit_number"):
+            lines.append(
+                "Note: please reply with your unit number so we can "
+                "locate the issue faster."
+            )
+        send_email(
+            sender,
+            f"Re: Your Complaint {c['ticket_number']} Received",
+            "\n".join(lines),
+        )
     return {"ok": True, "ticket": c["ticket_number"]}
+
+
+@router.post("/webhooks/sendgrid/email")
+async def sendgrid_email(request: Request) -> dict:
+    return await _handle_inbound_email(request)
+
+
+@router.post("/webhooks/sendgrid/inbound-email")
+async def sendgrid_inbound(request: Request) -> dict:
+    # backwards-compatible alias
+    return await _handle_inbound_email(request)
