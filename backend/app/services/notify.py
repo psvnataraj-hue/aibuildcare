@@ -16,8 +16,13 @@ def send_whatsapp(to_phone: str, body: str) -> bool:
         from twilio.rest import Client
 
         client = Client(s.twilio_account_sid, s.twilio_auth_token)
+        wa_from = (
+            f"whatsapp:{s.twilio_whatsapp_number}"
+            if s.twilio_whatsapp_number
+            else s.twilio_whatsapp_from
+        )
         client.messages.create(
-            from_=s.twilio_whatsapp_from,
+            from_=wa_from,
             to=f"whatsapp:{to_phone}",
             body=body,
         )
@@ -36,8 +41,13 @@ def send_sms(to_phone: str, body: str) -> bool:
         from twilio.rest import Client
 
         client = Client(s.twilio_account_sid, s.twilio_auth_token)
+        sms_from = (
+            s.twilio_sms_number
+            or s.twilio_whatsapp_number
+            or s.twilio_whatsapp_from.replace("whatsapp:", "")
+        )
         client.messages.create(
-            from_=s.twilio_whatsapp_from.replace("whatsapp:", ""),
+            from_=sms_from,
             to=to_phone,
             body=body,
         )

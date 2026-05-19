@@ -32,7 +32,13 @@ class Settings(BaseSettings):
 
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
+    # Sandbox default; prod overrides via the *_number vars below.
     twilio_whatsapp_from: str = "whatsapp:+14155238886"
+    # Production WhatsApp number, e.g. +14155238886 or +91XXXXXXXXXX
+    twilio_whatsapp_number: str = ""
+    # SMS sender: a Twilio number OR an alphanumeric sender ID (e.g.
+    # "CARIMO" for India). Falls back to the WhatsApp number if empty.
+    twilio_sms_number: str = ""
 
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "noreply@aibuildcare.local"
