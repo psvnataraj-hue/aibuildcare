@@ -85,15 +85,22 @@ table. Production seed: 7 categories, 34 rated contractors.
   Twilio WhatsApp number.
 
 ## Known gaps / risks (please scrutinize)
-1. **Render free-tier cold start** (~20–40s) — no keep-alive pinger yet;
-   form channel tolerates it, interactive channels less so.
+1. **Render free-tier cold start** (~40s measured) — mitigation is an
+   external 5-min uptime ping (UptimeRobot/cron-job.org) keeping the
+   instance warm; affects dashboard login + interactive channels, not
+   just webhooks. No in-repo cron (private-repo Actions-minute cost).
 2. **Single hard-coded admin identity** in the UI; no user management,
-   RBAC, or multi-society tenancy isolation in the frontend.
+   RBAC, or multi-society tenancy isolation. **Largest gap** — design
+   work, not a patch; appropriate to scope as "single-society pilot".
 3. **Partial i18n** — many UI strings are hard-coded bilingual rather
    than fully localized.
-4. Frontend `VITE_API_BASE` + deploy was pending in the last handoff;
-   verify the live dashboard reaches the API.
-5. Raw-SQL service layer (no ORM) — review for injection safety.
+4. ~~`VITE_API_BASE` pending~~ **RESOLVED & verified**: deployed SPA
+   bundle points at `aibuildcare-api.onrender.com/api/v1`; live
+   dashboard reaches the live API.
+5. ~~Raw-SQL injection risk~~ **REVIEWED — clean**: all queries
+   parameterized (`?`/`%s` bound); only dynamic SQL is whitelisted
+   `ORDER BY` + hardcoded WHERE clause assembly; no user input is
+   string-interpolated into SQL anywhere.
 6. SQLite-for-tests vs Postgres-for-prod parity relies on a hand-written
    shim — review correctness risk.
 7. Analytics charts degrade with sparse data; some trend/rating charts
@@ -103,6 +110,11 @@ table. Production seed: 7 categories, 34 rated contractors.
 9. **SMS channel is unproven & deferred** — code complete and
    unit-tested, but never exercised against a real provider; India SMS
    additionally blocked on TRAI DLT registration. Not a pilot channel.
+10. **Voice reply (Sarvam TTS → WhatsApp)** — implemented + 17 unit
+   tests; live verification pending Twilio WhatsApp number.
+11. **Staff-facing summaries** — parser emits per-configured-language
+   complaint summaries for officials who don't read the resident's
+   language (`official_summary_languages`, default Hindi).
 
 ## Requested review focus
 Architecture soundness, security (auth, raw SQL, webhook endpoints with
