@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS complaints (
     reporter_phone  TEXT,
     reporter_email  TEXT,
     contractor_id   INTEGER REFERENCES contractors(id),
+    media_urls      TEXT,
+    detected_language TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at     TEXT
