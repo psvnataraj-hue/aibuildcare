@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "noreply@aibuildcare.local"
 
+    # Cloudflare R2 (S3-compatible) for complaint media. Empty -> media
+    # upload is skipped gracefully (ticket still created).
+    r2_endpoint_url: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = "aibuildcare-assets"
+    r2_public_base_url: str = ""
+
+    # Local Whisper (openai-whisper package). No key. Lazy-loaded;
+    # gracefully degrades where torch/RAM is unavailable (e.g. Render free).
+    whisper_model: str = "base"
+
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
 

@@ -114,25 +114,43 @@ def rule_based_parse(text: str) -> ParsedComplaint:
 
 _SYSTEM = (
     "You are a building-complaint intake assistant for an Indian housing "
-    "society. Residents write in English, Hindi, or Hinglish with typos. "
+    "society. Residents may write in English, Hindi, Hinglish, Marathi, "
+    "Gujarati, Punjabi, Kannada, Tamil, Telugu or Malayalam, in native "
+    "script or transliteration, with typos. If photos are attached, also "
+    "judge severity and safety from what you see. "
     "Return ONLY a JSON object with keys: unit_number (string or null), "
     f"category (one of {CATEGORIES}), priority (one of "
-    '["normal","high","urgent"]), acknowledgement (a short, warm, '
-    "human-sounding confirmation written in the SAME language and script "
-    "the resident used, with no ticket number). No prose, JSON only."
+    '["normal","high","urgent"]; raise it if a photo shows severe/unsafe '
+    "damage), detected_language (one of english, hindi, hinglish, marathi, "
+    "gujarati, punjabi, kannada, tamil, telugu, malayalam), acknowledgement "
+    "(a short, warm, human-sounding confirmation written in the SAME "
+    "language and script the resident used, with no ticket number). "
+    "No prose, JSON only."
 )
 
 
-def _llm_parse(text: str) -> ParsedComplaint:
+def _llm_parse(
+    text: str, image_urls: list[str] | None = None
+) -> ParsedComplaint:
     import anthropic
 
     s = get_settings()
     client = anthropic.Anthropic(api_key=s.anthropic_api_key)
+
+    if image_urls:
+        content: list = [{"type": "text", "text": text or "(see photo)"}]
+        for url in image_urls:
+            content.append(
+                {"type": "image", "source": {"type": "url", "url": url}}
+            )
+    else:
+        content = text
+
     resp = client.messages.create(
         model=s.haiku_model,
-        max_tokens=400,
+        max_tokens=500,
         system=_SYSTEM,
-        messages=[{"role": "user", "content": text}],
+        messages=[{"role": "user", "content": content}],
     )
     body = resp.content[0].text.strip()
     body = re.sub(r"^```(?:json)?|```$", "", body, flags=re.MULTILINE).strip()
@@ -145,11 +163,14 @@ def _llm_parse(text: str) -> ParsedComplaint:
         category=cat,
         priority=data.get("priority", "normal"),
         acknowledgement=data.get("acknowledgement", ""),
+        detected_language=data.get("detected_language"),
     )
 
 
-def parse_complaint(text: str) -> ParsedComplaint:
-    """Parse free text into structured complaint fields.
+def parse_complaint(
+    text: str, image_urls: list[str] | None = None
+) -> ParsedComplaint:
+    """Parse free text (+ optional photo URLs) into structured fields.
 
     Uses Haiku when a key is configured; falls back to the rule-based
     parser on any error so intake never fails.
@@ -158,6 +179,6 @@ def parse_complaint(text: str) -> ParsedComplaint:
     if not s.anthropic_api_key:
         return rule_based_parse(text)
     try:
-        return _llm_parse(text)
+        return _llm_parse(text, image_urls)
     except Exception:
         return rule_based_parse(text)

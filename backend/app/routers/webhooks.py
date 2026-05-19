@@ -1,18 +1,36 @@
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Request
 
 from ..services import complaint_service as svc
+from ..services import audio_transcriber, media_intake
 from ..services.ws_hub import hub
 from ..services.notify import send_whatsapp, send_sms, send_email
 
 router = APIRouter(tags=["webhooks"])
 
 
+def _with_audio(body: str, audio: list[tuple[bytes, str]]) -> str:
+    """Append any transcribed voice notes to the text body."""
+    parts = [body] if body else []
+    for data, ctype in audio:
+        ext = ctype.split("/")[-1] or "ogg"
+        text, _lang = audio_transcriber.transcribe(data, ext)
+        if text:
+            parts.append(text)
+        elif not parts:
+            parts.append("[voice note received - transcription unavailable]")
+    return " ".join(p for p in parts if p).strip()
+
+
 @router.post("/webhooks/twilio/whatsapp")
-async def twilio_whatsapp(
-    From: str = Form(default=""), Body: str = Form(default="")
-) -> dict:
-    phone = From.replace("whatsapp:", "").strip()
-    c = svc.create_complaint(Body, channel="whatsapp", reporter_phone=phone)
+async def twilio_whatsapp(request: Request) -> dict:
+    form = dict(await request.form())
+    phone = str(form.get("From", "")).replace("whatsapp:", "").strip()
+    body = str(form.get("Body", ""))
+    images, audio = media_intake.extract_twilio_media(form)
+    text = _with_audio(body, audio) or "[media received]"
+    c = svc.create_complaint(
+        text, channel="whatsapp", reporter_phone=phone, image_urls=images
+    )
     await hub.broadcast("complaint.created", c)
     if phone:
         send_whatsapp(phone, c["acknowledgement"])
@@ -20,13 +38,39 @@ async def twilio_whatsapp(
 
 
 @router.post("/webhooks/twilio/sms")
-async def twilio_sms(
-    From: str = Form(default=""), Body: str = Form(default="")
-) -> dict:
-    c = svc.create_complaint(Body, channel="sms", reporter_phone=From.strip())
+async def twilio_sms(request: Request) -> dict:
+    form = dict(await request.form())
+    phone = str(form.get("From", "")).strip()
+    body = str(form.get("Body", ""))
+    images, audio = media_intake.extract_twilio_media(form)
+    text = _with_audio(body, audio) or "[media received]"
+    c = svc.create_complaint(
+        text, channel="sms", reporter_phone=phone, image_urls=images
+    )
     await hub.broadcast("complaint.created", c)
-    if From:
-        send_sms(From.strip(), c["acknowledgement"])
+    if phone:
+        send_sms(phone, c["acknowledgement"])
+    return {"ok": True, "ticket": c["ticket_number"]}
+
+
+@router.post("/webhooks/forms")
+async def google_form(request: Request) -> dict:
+    """Google Forms -> Apps Script -> here. Accepts JSON or form-encoded
+    {raw_text, phone}. No JWT (Apps Script can't mint one)."""
+    raw_text = ""
+    phone = None
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = dict(await request.form())
+    raw_text = str(payload.get("raw_text") or payload.get("description") or "")
+    phone = (payload.get("phone") or payload.get("reporter_phone") or None)
+    c = svc.create_complaint(
+        raw_text or "[empty form submission]",
+        channel="form",
+        reporter_phone=str(phone).strip() if phone else None,
+    )
+    await hub.broadcast("complaint.created", c)
     return {"ok": True, "ticket": c["ticket_number"]}
 
 

@@ -1,0 +1,5 @@
+# Optional audio transcription (local Whisper, free, no API key).
+# Pulls in PyTorch (~1 GB RAM) - DO NOT add to the main requirements.txt
+# or the Render free-tier deploy will OOM. Install only where RAM allows:
+#   pip install -r requirements-audio.txt
+openai-whisper==20241226

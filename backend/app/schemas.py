@@ -51,3 +51,4 @@ class ParsedComplaint(BaseModel):
     category: str = "Other"
     priority: str = "normal"
     acknowledgement: str = ""
+    detected_language: str | None = None

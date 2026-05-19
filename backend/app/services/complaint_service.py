@@ -38,16 +38,19 @@ def create_complaint(
     channel: str = "dashboard",
     reporter_phone: str | None = None,
     reporter_email: str | None = None,
+    image_urls: list[str] | None = None,
 ) -> dict:
-    parsed = parse_complaint(raw_text)
+    parsed = parse_complaint(raw_text, image_urls)
+    media = ",".join(image_urls) if image_urls else None
     with get_conn() as conn:
         ticket = _next_ticket(conn)
         ack = f"{ACK_TICK} Ticket {ticket}. {parsed.acknowledgement}"
         cur = conn.execute(
             "INSERT INTO complaints (ticket_number, unit_number, category, "
             "priority, status, channel, raw_text, acknowledgement, "
-            "reporter_phone, reporter_email, created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "reporter_phone, reporter_email, media_urls, detected_language, "
+            "created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 ticket,
                 parsed.unit_number,
@@ -59,6 +62,8 @@ def create_complaint(
                 ack,
                 reporter_phone,
                 reporter_email,
+                media,
+                parsed.detected_language,
                 _now(),
                 _now(),
             ),
