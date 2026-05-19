@@ -19,6 +19,7 @@ import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
 import ImageLightbox from '../components/ui/ImageLightbox.vue'
+import { toast } from '../lib/toast'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,8 +50,10 @@ async function submitRating() {
     await api.rate(id, starPick.value, feedback.value)
     await load()
     ratingMsg.value = 'Thank you for your feedback!'
+    toast('Rating submitted ✓ · धन्यवाद')
   } catch (e: any) {
     ratingMsg.value = e.message
+    toast(e.message || 'Rating failed', 'error')
   }
 }
 
@@ -107,6 +110,7 @@ async function send() {
   await api.addMessage(id, msg.value)
   msg.value = ''
   await load()
+  toast('Note added ✓ · नोट जोड़ा')
 }
 async function assign() {
   if (!pick.value) return
@@ -114,8 +118,12 @@ async function assign() {
   try {
     await api.assign(id, pick.value)
     await load()
+    const name = contractors.value.find((x) => x.id === pick.value)?.name
+    toast(`Assigned to ${name || 'contractor'} ✓`)
+    pick.value = null
   } catch (e: any) {
     error.value = e.message
+    toast(e.message || 'Assign failed', 'error')
   }
 }
 async function setStatus(s: string) {
@@ -123,8 +131,10 @@ async function setStatus(s: string) {
   try {
     await api.setStatus(id, s)
     await load()
+    toast(`Status → ${s.replace('_', ' ')} ✓`)
   } catch (e: any) {
     error.value = e.message
+    toast(e.message || 'Update failed', 'error')
   }
 }
 </script>

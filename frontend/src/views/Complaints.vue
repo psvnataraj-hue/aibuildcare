@@ -6,6 +6,7 @@ import { api, openWS, type Complaint } from '../api'
 import Card from '../components/ui/Card.vue'
 import ComplaintCard from '../components/ComplaintCard.vue'
 import Spinner from '../components/ui/Spinner.vue'
+import { toast } from '../lib/toast'
 
 const route = useRoute()
 const items = ref<Complaint[]>([])
@@ -32,9 +33,12 @@ async function create() {
   if (!newText.value.trim()) return
   creating.value = true
   try {
-    await api.createComplaint(newText.value)
+    const c = await api.createComplaint(newText.value)
     newText.value = ''
     await load()
+    toast(`Logged ${c.ticket_number} ✓`)
+  } catch (e: any) {
+    toast(e.message || 'Failed to log', 'error')
   } finally {
     creating.value = false
   }

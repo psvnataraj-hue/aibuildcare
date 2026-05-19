@@ -66,15 +66,17 @@ onUnmounted(() => ws?.close())
         class="text-left"
         @click="router.push(card.q ? `/complaints?status=${card.q}` : '/complaints')"
       >
-        <Card class="hover:ring-1 hover:ring-ring transition">
+        <Card hover>
           <div class="flex items-start justify-between">
             <div>
-              <p class="text-xs text-muted-foreground">{{ card.label }}</p>
-              <p class="text-3xl font-bold mt-1" :class="card.cls">
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {{ card.label }}
+              </p>
+              <p class="text-4xl font-extrabold mt-2" :class="card.cls">
                 {{ card.n }}
               </p>
             </div>
-            <component :is="card.icon" class="h-6 w-6" :class="card.cls" />
+            <component :is="card.icon" class="h-7 w-7" :class="card.cls" />
           </div>
         </Card>
       </button>

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { api } from '../api'
 import Card from '../components/ui/Card.vue'
 import Spinner from '../components/ui/Spinner.vue'
+import { toast } from '../lib/toast'
 
 const loading = ref(true)
 const maxJobs = ref('10')
@@ -29,8 +30,10 @@ async function save() {
       lbEnabled.value ? 'true' : 'false'
     )
     msg.value = 'Saved ✓ · सहेजा गया'
+    toast('Settings saved ✓ · सहेजा गया')
   } catch (e: any) {
     msg.value = e.message || 'Save failed'
+    toast(e.message || 'Save failed', 'error')
   }
 }
 </script>

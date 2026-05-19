@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { clearToken, hasToken } from './api'
 import { isDark, toggleTheme } from './lib/theme'
+import Toaster from './components/ui/Toaster.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -98,4 +99,6 @@ const shell = () => hasToken() && route.path !== '/login'
   </div>
 
   <RouterView v-else />
+
+  <Toaster />
 </template>
