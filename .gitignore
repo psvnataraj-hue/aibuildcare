@@ -223,3 +223,7 @@ data/
 *.db
 frontend/dist/
 .env
+
+# AIBuildCare: do not ignore frontend source under src/lib
+!frontend/src/lib/
+!frontend/src/lib/**
