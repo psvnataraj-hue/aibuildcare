@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     # gracefully degrades where torch/RAM is unavailable (e.g. Render free).
     whisper_model: str = "base"
 
+    # Sarvam AI Speech-to-Text (preferred for Indian languages).
+    # Empty -> falls back to local Whisper, then graceful no-op.
+    sarvam_api_key: str = ""
+    sarvam_model: str = "saarika:v2.5"
+
     # Smart auto-assignment on complaint create (Phase 4.5). On in prod;
     # the existing test suite disables it so per-test status assertions
     # stay meaningful; the dedicated auto-assign tests opt back in.

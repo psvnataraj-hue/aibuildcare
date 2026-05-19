@@ -37,3 +37,55 @@ def test_whatsapp_voice_note_still_creates_ticket(client):
         mi._download = orig
     assert r.status_code == 200
     assert r.json()["ticket"].startswith("SER-")
+
+
+# ---- Sarvam path (mocked, offline) -----------------------------------
+def test_sarvam_transcribes_when_key_set(monkeypatch):
+    import httpx
+    from app.config import get_settings
+    from app.services import audio_transcriber as at
+
+    monkeypatch.setenv("AIBUILDCARE_SARVAM_API_KEY", "sk-sarvam-test")
+    get_settings.cache_clear()
+
+    class _R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "transcript": "5B mein AC kharab hai",
+                "language_code": "hi-IN",
+            }
+
+    captured = {}
+
+    def fake_post(url, **kw):
+        captured["url"] = url
+        captured["hdr"] = kw.get("headers", {})
+        return _R()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    text, lang = at.transcribe(b"OggS-bytes", "ogg")
+    assert text == "5B mein AC kharab hai"
+    assert lang == "hi-IN"
+    assert captured["url"] == "https://api.sarvam.ai/speech-to-text"
+    assert captured["hdr"].get("api-subscription-key") == "sk-sarvam-test"
+    get_settings.cache_clear()
+
+
+def test_sarvam_failure_is_graceful(monkeypatch):
+    import httpx
+    from app.config import get_settings
+    from app.services import audio_transcriber as at
+
+    monkeypatch.setenv("AIBUILDCARE_SARVAM_API_KEY", "sk-sarvam-test")
+    get_settings.cache_clear()
+
+    def boom(url, **kw):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    text, lang = at.transcribe(b"x", "ogg")
+    assert text == "" and lang is None  # never raises
+    get_settings.cache_clear()
