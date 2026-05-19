@@ -12,6 +12,12 @@ DEFAULTS = {
     # summary the parser generates. Default Hindi; a society can set
     # e.g. "en,hi,mr" to get all three. No code/migration needed.
     "official_summary_languages": "hi",
+    # WhatsApp voice-note reply policy:
+    #   off       -> text acknowledgement only
+    #   on_audio  -> also send a voice note ONLY when the resident's
+    #                complaint itself contained an audio note (mirror)
+    #   always    -> always send text + voice note
+    "whatsapp_voice_reply_mode": "on_audio",
 }
 
 

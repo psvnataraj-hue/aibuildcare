@@ -46,11 +46,33 @@ def _with_audio(body: str, audio: list[tuple[bytes, str]]) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
-def _maybe_voice_reply(phone: str, c: dict) -> None:
+def _voice_reply_mode() -> str:
+    """Society-configurable policy; resilient (never degrades intake)."""
+    try:
+        from ..services import system_config
+
+        return system_config.get_config(
+            "whatsapp_voice_reply_mode", "on_audio"
+        )
+    except Exception:
+        return "on_audio"
+
+
+def _maybe_voice_reply(
+    phone: str, c: dict, inbound_had_audio: bool
+) -> None:
     """Best-effort: voice the ack via Sarvam TTS -> R2 -> WhatsApp media.
-    Every failure is swallowed; the text ack was already sent."""
+    Every failure is swallowed; the text ack was already sent.
+
+    Gated by a global env kill-switch, then the society's
+    whatsapp_voice_reply_mode (off / on_audio / always)."""
     if not get_settings().whatsapp_voice_reply_enabled:
         return
+    mode = _voice_reply_mode()
+    if mode == "off":
+        return
+    if mode == "on_audio" and not inbound_had_audio:
+        return  # resident sent text -> reply text only
     try:
         out = tts.synthesize(c["acknowledgement"], c.get("detected_language"))
         if not out:
@@ -77,7 +99,7 @@ async def twilio_whatsapp(request: Request) -> dict:
     await hub.broadcast("complaint.created", c)
     if phone:
         send_whatsapp(phone, c["acknowledgement"])
-        _maybe_voice_reply(phone, c)
+        _maybe_voice_reply(phone, c, inbound_had_audio=bool(audio))
     return {"ok": True, "ticket": c["ticket_number"]}
 
 

@@ -27,9 +27,14 @@ def test_to_bcp47(given, expected):
 
 
 # ---- synthesize ------------------------------------------------------
-def test_synthesize_none_without_key():
-    # default test settings have no Sarvam key
+def test_synthesize_none_without_key(monkeypatch):
+    # hermetic: force no key regardless of the dev's local .env
+    from app.config import get_settings
+
+    monkeypatch.setenv("AIBUILDCARE_SARVAM_API_KEY", "")
+    get_settings.cache_clear()
     assert tts.synthesize("hello", "english") is None
+    get_settings.cache_clear()
 
 
 def test_synthesize_returns_mp3(monkeypatch):
@@ -113,9 +118,15 @@ def test_whatsapp_webhook_sends_voice_reply(client, monkeypatch):
         lambda phone, url, body="": sent.update(phone=phone, url=url) or True,
     )
 
+    # default mode = on_audio: resident sent a voice note -> voice back
+    import app.services.media_intake as mi
+
+    monkeypatch.setattr(mi, "_download", lambda url: (b"OggS", "audio/ogg"))
     r = client.post(
         "/webhooks/twilio/whatsapp",
-        data={"From": "whatsapp:+919833129064", "Body": "5B AC kharab hai"},
+        data={"From": "whatsapp:+919833129064", "Body": "",
+              "NumMedia": "1", "MediaUrl0": "https://api.twilio.com/a0",
+              "MediaContentType0": "audio/ogg"},
     )
     assert r.status_code == 200
     assert r.json()["ticket"].startswith("SER-")
@@ -123,8 +134,81 @@ def test_whatsapp_webhook_sends_voice_reply(client, monkeypatch):
     assert sent["url"] == "https://r2.example/abc.mp3"
 
 
+def test_text_only_complaint_gets_no_voice_in_on_audio_mode(
+    client, monkeypatch
+):
+    """Default on_audio: a TEXT WhatsApp complaint -> text ack only."""
+    from app.routers import webhooks as wh
+
+    calls = {"media": 0}
+    monkeypatch.setattr(
+        wh.tts, "synthesize",
+        lambda *a, **k: (b"mp3", "mp3", "audio/mpeg"),
+    )
+    monkeypatch.setattr(
+        wh, "send_whatsapp_media",
+        lambda *a, **k: calls.__setitem__("media", calls["media"] + 1),
+    )
+    r = client.post(
+        "/webhooks/twilio/whatsapp",
+        data={"From": "whatsapp:+919833129064", "Body": "5B AC kharab"},
+    )
+    assert r.status_code == 200
+    assert calls["media"] == 0  # text in -> text out only
+
+
+def test_always_mode_voices_even_text_complaint(client, monkeypatch):
+    from app.routers import webhooks as wh
+    from app.services import system_config
+
+    system_config.set_config("whatsapp_voice_reply_mode", "always")
+    sent = {}
+    monkeypatch.setattr(
+        wh.tts, "synthesize",
+        lambda *a, **k: (b"mp3", "mp3", "audio/mpeg"),
+    )
+    monkeypatch.setattr(
+        wh.r2_client, "upload_bytes",
+        lambda *a, **k: "https://r2.example/x.mp3",
+    )
+    monkeypatch.setattr(
+        wh, "send_whatsapp_media",
+        lambda phone, url, body="": sent.update(url=url) or True,
+    )
+    r = client.post(
+        "/webhooks/twilio/whatsapp",
+        data={"From": "whatsapp:+919833129064", "Body": "text only"},
+    )
+    assert r.status_code == 200
+    assert sent.get("url") == "https://r2.example/x.mp3"
+
+
+def test_off_mode_never_voices_even_audio(client, monkeypatch):
+    from app.routers import webhooks as wh
+    from app.services import system_config
+    import app.services.media_intake as mi
+
+    system_config.set_config("whatsapp_voice_reply_mode", "off")
+    calls = {"synth": 0}
+    monkeypatch.setattr(
+        wh.tts, "synthesize",
+        lambda *a, **k: calls.__setitem__("synth", 1) or None,
+    )
+    monkeypatch.setattr(mi, "_download", lambda url: (b"OggS", "audio/ogg"))
+    r = client.post(
+        "/webhooks/twilio/whatsapp",
+        data={"From": "whatsapp:+919833129064", "Body": "",
+              "NumMedia": "1", "MediaUrl0": "https://api.twilio.com/a0",
+              "MediaContentType0": "audio/ogg"},
+    )
+    assert r.status_code == 200
+    assert calls["synth"] == 0  # off -> TTS never invoked
+
+
 def test_whatsapp_webhook_text_fallback_when_tts_fails(client, monkeypatch):
     from app.routers import webhooks as wh
+
+    import app.services.media_intake as mi
 
     calls = {"media": 0}
     monkeypatch.setattr(wh.tts, "synthesize", lambda text, lang=None: None)
@@ -132,10 +216,13 @@ def test_whatsapp_webhook_text_fallback_when_tts_fails(client, monkeypatch):
         wh, "send_whatsapp_media",
         lambda *a, **k: calls.__setitem__("media", calls["media"] + 1),
     )
-
+    # audio inbound so the voice path actually runs; TTS returns None
+    monkeypatch.setattr(mi, "_download", lambda url: (b"OggS", "audio/ogg"))
     r = client.post(
         "/webhooks/twilio/whatsapp",
-        data={"From": "whatsapp:+919833129064", "Body": "leak in 7E"},
+        data={"From": "whatsapp:+919833129064", "Body": "",
+              "NumMedia": "1", "MediaUrl0": "https://api.twilio.com/a0",
+              "MediaContentType0": "audio/ogg"},
     )
     assert r.status_code == 200
     assert r.json()["ticket"].startswith("SER-")
