@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     full_name     TEXT,
     role          TEXT NOT NULL DEFAULT 'staff',
+    society_id    INTEGER REFERENCES societies(id),
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
 );
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     phone       TEXT,
     specialty   TEXT,
     average_rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+    society_id  INTEGER REFERENCES societies(id),
     is_active   INTEGER NOT NULL DEFAULT 1,
     created_at  TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
 );
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS contractors (
 CREATE TABLE IF NOT EXISTS categories (
     id        SERIAL PRIMARY KEY,
     name      TEXT NOT NULL UNIQUE,
+    society_id INTEGER REFERENCES societies(id),
     sla_hours INTEGER NOT NULL DEFAULT 24
 );
 
@@ -71,8 +74,11 @@ CREATE TABLE IF NOT EXISTS complaints (
 );
 CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 CREATE INDEX IF NOT EXISTS idx_complaints_created ON complaints(created_at);
--- additive migration for already-provisioned prod tables (idempotent)
+-- additive migrations for already-provisioned prod tables (idempotent)
 ALTER TABLE complaints ADD COLUMN IF NOT EXISTS official_summaries TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
 
 CREATE TABLE IF NOT EXISTS complaint_messages (
     id           SERIAL PRIMARY KEY,

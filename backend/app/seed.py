@@ -44,6 +44,19 @@ def seed() -> None:
                     "VALUES (?,?,?)",
                     (name, spec, phone),
                 )
+        # multi-society Phase 1: every legacy/global row belongs to the
+        # default (first) society. Idempotent - only fills NULLs.
+        soc = conn.execute(
+            "SELECT id FROM societies ORDER BY id LIMIT 1"
+        ).fetchone()
+        if soc:
+            did = dict(soc)["id"]
+            for tbl in ("users", "contractors", "categories", "complaints"):
+                conn.execute(
+                    f"UPDATE {tbl} SET society_id = ? "
+                    "WHERE society_id IS NULL",
+                    (did,),
+                )
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     full_name     TEXT,
     role          TEXT NOT NULL DEFAULT 'staff',
+    society_id    INTEGER REFERENCES societies(id),
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     phone         TEXT,
     specialty     TEXT,
     average_rating REAL NOT NULL DEFAULT 5.0,
+    society_id    INTEGER REFERENCES societies(id),
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -41,6 +43,7 @@ CREATE TABLE IF NOT EXISTS contractors (
 CREATE TABLE IF NOT EXISTS categories (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL UNIQUE,
+    society_id    INTEGER REFERENCES societies(id),
     sla_hours     INTEGER NOT NULL DEFAULT 24
 );
 
