@@ -1,6 +1,37 @@
 # AIBuildCare — Session Handoff (resume after break)
 
-_Last updated: 2026-05-19. Repo: `psvnataraj-hue/aibuildcare`, branch `main`._
+_Last updated: 2026-05-19 (session 2 close). Repo:
+`psvnataraj-hue/aibuildcare`, branch `main`. Latest commit `c92c9ab`._
+
+## SESSION 2 CLOSE — what changed
+- **Sarvam AI speech-to-text LIVE & verified** across Hindi, Telugu,
+  English, Hinglish (native scripts, urgency detection, auto-assign
+  all working). Set on Render via `AIBUILDCARE_SARVAM_API_KEY`.
+- Tests **112/112**. Commits this session: `f12e890` (Twilio sms
+  sender) → `62d3479` (SendGrid email) → `ed3cbb1` (handoff) →
+  `c92c9ab` (Sarvam audio).
+- Prod Supabase currently holds **5 audio test tickets**
+  (SER-2026-00001..00005) — clear them for a clean pilot start
+  (scoped-delete by id; preserve categories/contractors/system_config).
+
+## NEXT SESSION — priorities (user requested)
+1. **Google Form intake** — backend `/webhooks/forms` ALREADY built
+   + tested; Apps Script + fields already in `DEPLOYMENT.md`. Task =
+   guide user to CREATE the Form + paste Apps Script (their action),
+   optionally polish. NOT a big build — set expectations.
+2. **Sarvam TTS → WhatsApp audio reply** (NEW feature): generate
+   speech from the acknowledgement via Sarvam Text-to-Speech →
+   upload to R2 (public URL) → send as Twilio WhatsApp **media**
+   message. Design caveats: WhatsApp audio codec (use OGG/Opus or
+   WhatsApp-accepted MP3 — verify Sarvam TTS output format & convert
+   if needed), Twilio media-send needs public URL (R2 ✔), added
+   latency/cost, must stay in 24-h session window (acks are reactive
+   → ok). Keep graceful: if TTS fails, still send the text ack.
+   Fetch current Sarvam TTS API docs (endpoint/auth/params/limits)
+   before coding — don't guess the contract.
+3. Deferred: add more complaint categories (e.g. map noise/neighbour
+   → Security) + fallback contractor for "Other"/unmatched so such
+   tickets don't sit unassigned (SER-2026-00005 was the example).
 
 ## Current state — WORKING & LIVE
 - Backend live on Render `https://aibuildcare-api.onrender.com` (manual-sync).
