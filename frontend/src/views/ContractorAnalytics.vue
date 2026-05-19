@@ -1,10 +1,33 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Star } from 'lucide-vue-next'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Pie } from 'vue-chartjs'
 import { api, type ContractorAnalytics } from '../api'
 import Card from '../components/ui/Card.vue'
 import Spinner from '../components/ui/Spinner.vue'
+
+ChartJS.register(ArcElement, Tooltip, Legend)
+const PIE = ['#6366f1', '#10b981', '#f59e0b', '#0ea5e9', '#8b5cf6', '#ef4444', '#64748b']
+const pieData = computed(() => {
+  const cs = a.value?.category_specialization || {}
+  const keys = Object.keys(cs)
+  return {
+    labels: keys,
+    datasets: [
+      {
+        backgroundColor: keys.map((_, i) => PIE[i % PIE.length]),
+        data: keys.map((k) => cs[k].completed),
+      },
+    ],
+  }
+})
+const hasPie = computed(() =>
+  Object.values(a.value?.category_specialization || {}).some(
+    (v: any) => v.completed > 0
+  )
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -121,6 +144,16 @@ onMounted(async () => {
         </div>
       </div>
       <p v-else class="text-sm text-muted-foreground">No jobs yet</p>
+    </Card>
+
+    <Card v-if="hasPie">
+      <h2 class="font-semibold mb-3">Work split by category</h2>
+      <div class="h-64 max-w-xs mx-auto">
+        <Pie
+          :data="pieData"
+          :options="{ responsive: true, maintainAspectRatio: false }"
+        />
+      </div>
     </Card>
   </div>
   <p v-else class="text-muted-foreground">Contractor not found</p>
