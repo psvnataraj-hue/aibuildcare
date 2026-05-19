@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Circle,
   Languages,
+  Star,
 } from 'lucide-vue-next'
 import {
   api,
@@ -29,6 +30,29 @@ const pick = ref<number | null>(null)
 const error = ref('')
 const lightbox = ref<string | null>(null)
 const loading = ref(true)
+
+// #20 rating
+const starPick = ref(0)
+const starHover = ref(0)
+const feedback = ref('')
+const ratingMsg = ref('')
+const canRate = computed(
+  () =>
+    !!c.value &&
+    !c.value.rating &&
+    ['resolved', 'closed'].includes(c.value.status)
+)
+async function submitRating() {
+  if (!starPick.value) return
+  ratingMsg.value = ''
+  try {
+    await api.rate(id, starPick.value, feedback.value)
+    await load()
+    ratingMsg.value = 'Thank you for your feedback!'
+  } catch (e: any) {
+    ratingMsg.value = e.message
+  }
+}
 
 const FLOW = [
   'received',
@@ -142,6 +166,81 @@ async function setStatus(s: string) {
           />
         </template>
       </div>
+    </Card>
+
+    <!-- #20 rating -->
+    <Card v-if="c.rating">
+      <div class="flex items-center gap-2">
+        <Star
+          v-for="n in 5"
+          :key="n"
+          class="h-5 w-5"
+          :class="
+            n <= c.rating.rating
+              ? 'fill-amber-400 text-amber-400'
+              : 'text-muted-foreground/40'
+          "
+        />
+        <span class="text-sm font-medium ml-1"
+          >{{ c.rating.rating }}/5</span
+        >
+      </div>
+      <p
+        v-if="c.rating.feedback"
+        class="text-sm text-muted-foreground mt-2 italic"
+      >
+        “{{ c.rating.feedback }}”
+      </p>
+    </Card>
+
+    <Card v-else-if="canRate">
+      <h2 class="font-semibold mb-1">Rate this resolution</h2>
+      <p class="text-sm text-muted-foreground mb-3">
+        How was your experience?
+      </p>
+      <div class="flex items-center gap-1 mb-3">
+        <button
+          v-for="n in 5"
+          :key="n"
+          type="button"
+          @click="starPick = n"
+          @mouseenter="starHover = n"
+          @mouseleave="starHover = 0"
+        >
+          <Star
+            class="h-7 w-7 transition-colors"
+            :class="
+              n <= (starHover || starPick)
+                ? 'fill-amber-400 text-amber-400'
+                : 'text-muted-foreground/40'
+            "
+          />
+        </button>
+      </div>
+      <textarea
+        v-model="feedback"
+        rows="3"
+        placeholder="What was your experience?"
+        class="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring mb-3"
+      />
+      <button
+        :disabled="!starPick"
+        class="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+        @click="submitRating"
+      >
+        Submit Rating
+      </button>
+      <p
+        v-if="ratingMsg"
+        class="text-sm mt-2"
+        :class="
+          ratingMsg.startsWith('Thank')
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-destructive'
+        "
+      >
+        {{ ratingMsg }}
+      </p>
     </Card>
 
     <div

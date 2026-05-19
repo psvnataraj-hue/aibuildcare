@@ -50,6 +50,7 @@ export interface Complaint {
   created_at: string
   updated_at: string
   messages?: Message[]
+  rating?: Rating | null
 }
 export interface Message {
   id: number
@@ -62,6 +63,23 @@ export interface Contractor {
   name: string
   specialty: string
   phone: string
+}
+export interface Rating {
+  rating: number
+  feedback: string | null
+  rated_at: string
+}
+export interface ContractorPerf {
+  contractor_id: number
+  name: string
+  phone: string
+  specialty: string
+  assigned_count: number
+  resolved_count: number
+  avg_response_time_hours: number | null
+  avg_resolution_time_hours: number | null
+  completion_rate: number
+  last_activity: string | null
 }
 
 export const api = {
@@ -103,6 +121,13 @@ export const api = {
       body: JSON.stringify({ sender: 'staff', body }),
     }),
   contractors: () => req<Contractor[]>('/api/v1/contractors'),
+  contractorPerformance: () =>
+    req<ContractorPerf[]>('/api/v1/contractors/performance'),
+  rate: (id: number, rating: number, feedback: string) =>
+    req<Rating>(`/api/v1/complaints/${id}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, feedback }),
+    }),
 }
 
 export function openWS(onEvent: (e: { event: string; payload: any }) => void) {

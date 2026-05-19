@@ -46,6 +46,11 @@ class MessageCreate(BaseModel):
     body: str = Field(min_length=1)
 
 
+class RateRequest(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    feedback: str | None = None
+
+
 class ParsedComplaint(BaseModel):
     unit_number: str | None = None
     category: str = "Other"

@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Wrench,
+  BarChart3,
   LogOut,
   Moon,
   Sun,
@@ -19,6 +20,7 @@ const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/complaints', label: 'Complaints', icon: ClipboardList },
   { to: '/contractors', label: 'Contractors', icon: Wrench },
+  { to: '/performance', label: 'Performance', icon: BarChart3 },
 ]
 
 function logout() {

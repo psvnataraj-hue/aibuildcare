@@ -208,6 +208,134 @@ def list_messages(cid: int) -> list[dict]:
         ]
 
 
+def get_contractor(contractor_id: int) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def rate_complaint(cid: int, rating: int, feedback: str | None) -> dict:
+    if rating < 1 or rating > 5:
+        raise ComplaintError("rating must be 1-5")
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT status FROM complaints WHERE id = ?", (cid,)
+        ).fetchone()
+        if not row:
+            raise ComplaintError("complaint not found")
+        if row["status"] not in ("resolved", "closed"):
+            raise ComplaintError("can only rate a resolved complaint")
+        dup = conn.execute(
+            "SELECT 1 FROM complaint_ratings WHERE complaint_id = ?", (cid,)
+        ).fetchone()
+        if dup:
+            raise ComplaintError("complaint already rated")
+        conn.execute(
+            "INSERT INTO complaint_ratings (complaint_id, rating, feedback, "
+            "created_at) VALUES (?,?,?,?)",
+            (cid, rating, feedback, _now()),
+        )
+        out = conn.execute(
+            "SELECT rating, feedback, created_at AS rated_at "
+            "FROM complaint_ratings WHERE complaint_id = ?",
+            (cid,),
+        ).fetchone()
+        return dict(out)
+
+
+def get_rating(cid: int) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT rating, feedback, created_at AS rated_at "
+            "FROM complaint_ratings WHERE complaint_id = ?",
+            (cid,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def _avg_hours(pairs: list[tuple[str, str]]) -> float | None:
+    spans = []
+    for a, b in pairs:
+        try:
+            ta = datetime.fromisoformat(a)
+            tb = datetime.fromisoformat(b)
+            spans.append((tb - ta).total_seconds())
+        except Exception:
+            continue
+    if not spans:
+        return None
+    return round(sum(spans) / len(spans) / 3600, 2)
+
+
+def contractor_performance(contractor_id: int | None = None) -> list[dict]:
+    with get_conn() as conn:
+        if contractor_id is not None:
+            cons = conn.execute(
+                "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
+            ).fetchall()
+        else:
+            cons = conn.execute(
+                "SELECT * FROM contractors WHERE is_active = 1 ORDER BY name"
+            ).fetchall()
+        out = []
+        for con in cons:
+            con = dict(con)
+            comps = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT id, status, updated_at FROM complaints "
+                    "WHERE contractor_id = ?",
+                    (con["id"],),
+                ).fetchall()
+            ]
+            assigned = len(comps)
+            resolved = sum(
+                1 for c in comps if c["status"] in ("resolved", "closed")
+            )
+            resp_pairs, reso_pairs = [], []
+            for c in comps:
+                hist = [
+                    dict(h)
+                    for h in conn.execute(
+                        "SELECT to_status, created_at FROM "
+                        "complaint_status_history WHERE complaint_id = ? "
+                        "ORDER BY created_at",
+                        (c["id"],),
+                    ).fetchall()
+                ]
+                first = {}
+                for h in hist:
+                    first.setdefault(h["to_status"], h["created_at"])
+                if "assigned" in first and "in_progress" in first:
+                    resp_pairs.append(
+                        (first["assigned"], first["in_progress"])
+                    )
+                if "assigned" in first and "resolved" in first:
+                    reso_pairs.append((first["assigned"], first["resolved"]))
+            last = max((c["updated_at"] for c in comps), default=None)
+            out.append(
+                {
+                    "contractor_id": con["id"],
+                    "name": con["name"],
+                    "phone": con["phone"],
+                    "specialty": con["specialty"],
+                    "assigned_count": assigned,
+                    "resolved_count": resolved,
+                    "avg_response_time_hours": _avg_hours(resp_pairs),
+                    "avg_resolution_time_hours": _avg_hours(reso_pairs),
+                    "completion_rate": (
+                        round(resolved / assigned * 100, 1)
+                        if assigned
+                        else 0.0
+                    ),
+                    "last_activity": last,
+                }
+            )
+        return out
+
+
 def analytics() -> dict:
     with get_conn() as conn:
         total = conn.execute(
