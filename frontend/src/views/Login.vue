@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Building2, Loader2 } from 'lucide-vue-next'
 import { api, setToken } from '../api'
 
 const email = ref('admin@aibuildcare.app')
@@ -25,19 +26,22 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center">
+  <div class="min-h-screen flex items-center justify-center p-4">
     <form
-      class="bg-white p-8 rounded-xl shadow-md w-full max-w-sm"
+      class="bg-card text-card-foreground border rounded-lg shadow-lg w-full max-w-sm p-8"
       @submit.prevent="submit"
     >
-      <h1 class="text-2xl font-bold text-brand mb-1">AIBuildCare</h1>
-      <p class="text-sm text-slate-500 mb-6">Staff sign in</p>
+      <div class="flex items-center gap-2 mb-1">
+        <Building2 class="h-7 w-7 text-primary" />
+        <h1 class="text-2xl font-bold">AIBuildCare</h1>
+      </div>
+      <p class="text-sm text-muted-foreground mb-6">Staff sign in</p>
 
       <label class="block text-sm font-medium mb-1">Email</label>
       <input
         v-model="email"
         type="email"
-        class="w-full border rounded px-3 py-2 mb-4"
+        class="w-full bg-background border rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-ring"
         required
       />
 
@@ -45,17 +49,23 @@ async function submit() {
       <input
         v-model="password"
         type="password"
-        class="w-full border rounded px-3 py-2 mb-4"
+        class="w-full bg-background border rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-ring"
         required
       />
 
-      <p v-if="error" class="text-red-600 text-sm mb-3">{{ error }}</p>
+      <p
+        v-if="error"
+        class="text-destructive text-sm mb-3 bg-destructive/10 rounded-md px-3 py-2"
+      >
+        {{ error }}
+      </p>
 
       <button
         :disabled="loading"
-        class="w-full bg-brand hover:bg-brand-dark text-white py-2 rounded font-medium disabled:opacity-60"
+        class="w-full bg-primary text-primary-foreground py-2 rounded-md font-medium hover:bg-primary/90 disabled:opacity-60 inline-flex items-center justify-center gap-2"
       >
-        {{ loading ? 'Signing in...' : 'Sign in' }}
+        <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
+        {{ loading ? 'Signing in…' : 'Sign in' }}
       </button>
     </form>
   </div>
