@@ -6,6 +6,9 @@ import Complaints from './views/Complaints.vue'
 import ComplaintDetail from './views/ComplaintDetail.vue'
 import Contractors from './views/Contractors.vue'
 import ContractorPerformance from './views/ContractorPerformance.vue'
+import ContractorAnalytics from './views/ContractorAnalytics.vue'
+import AnalyticsDashboard from './views/AnalyticsDashboard.vue'
+import Settings from './views/Settings.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +27,13 @@ const router = createRouter({
       component: ContractorPerformance,
       meta: { auth: true },
     },
+    {
+      path: '/contractors/:id',
+      component: ContractorAnalytics,
+      meta: { auth: true },
+    },
+    { path: '/analytics', component: AnalyticsDashboard, meta: { auth: true } },
+    { path: '/settings', component: Settings, meta: { auth: true } },
   ],
 })
 

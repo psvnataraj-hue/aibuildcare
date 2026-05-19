@@ -47,6 +47,7 @@ export interface Complaint {
   contractor_id: number | null
   media_urls: string | null
   detected_language: string | null
+  estimated_completion_date: string | null
   created_at: string
   updated_at: string
   messages?: Message[]
@@ -82,6 +83,51 @@ export interface ContractorPerf {
   avg_resolution_time_hours: number | null
   completion_rate: number
   last_activity: string | null
+}
+
+export interface ContractorAnalytics {
+  contractor_id: number
+  name: string
+  rating: number | null
+  workload: {
+    pending_count: number
+    in_progress_count: number
+    completed_count: number
+    total_assigned: number
+  }
+  response_time: {
+    avg_hours: number | null
+    min_hours: number | null
+    max_hours: number | null
+    trend: number[]
+  }
+  resolution_time: {
+    avg_hours: number | null
+    min_hours: number | null
+    max_hours: number | null
+    trend: number[]
+  }
+  rating_trend: { current: number | null; data_points: number[]; samples: number }
+  category_specialization: Record<
+    string,
+    { completed: number; pct_of_total: number }
+  >
+  availability: { status: string; last_activity: string | null }
+}
+export interface AnalyticsSummary {
+  total_contractors: number
+  active_contractors: number
+  avg_rating_across_all: number | null
+  top_performers: { name: string; rating: number | null; completed: number }[]
+  workload_distribution: {
+    available: number
+    at_capacity: number
+    overloaded: number
+  }
+  category_performance: Record<
+    string,
+    { avg_response_time: number | null; avg_resolution_time: number | null }
+  >
 }
 
 export const api = {
@@ -136,6 +182,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ rating, feedback }),
     }),
+  contractorAnalytics: (id: number) =>
+    req<ContractorAnalytics>(`/api/v1/contractors/${id}/analytics`),
+  analyticsSummary: () =>
+    req<AnalyticsSummary>('/api/v1/contractors/analytics/summary'),
+  adminConfig: () => req<Record<string, string>>('/api/v1/admin/config'),
+  setAdminConfig: (key: string, value: string) =>
+    req<{ config_key: string; config_value: string }>(
+      `/api/v1/admin/config/${key}`,
+      { method: 'POST', body: JSON.stringify({ value }) }
+    ),
 }
 
 export function openWS(onEvent: (e: { event: string; payload: any }) => void) {

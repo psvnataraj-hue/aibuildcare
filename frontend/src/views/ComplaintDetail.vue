@@ -80,6 +80,19 @@ async function load() {
 const assignedContractor = computed(() =>
   contractors.value.find((x) => x.id === c.value?.contractor_id) || null
 )
+const daysPending = computed(() => {
+  if (!c.value) return 0
+  const ms = Date.now() - new Date(c.value.created_at).getTime()
+  return Math.max(0, Math.floor(ms / 86400000))
+})
+const estCompletion = computed(() =>
+  c.value?.estimated_completion_date
+    ? new Date(c.value.estimated_completion_date).toLocaleDateString(
+        undefined,
+        { year: 'numeric', month: 'short', day: 'numeric' }
+      )
+    : null
+)
 
 onMounted(async () => {
   await load()
@@ -142,6 +155,43 @@ async function setStatus(s: string) {
         {{ c.category }} · {{ c.unit_number || 'unknown unit' }}
       </p>
       <p class="text-sm mt-2">{{ c.raw_text }}</p>
+    </div>
+
+    <!-- key info cards (at a glance) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <Card>
+        <p class="text-xs text-muted-foreground">Status · स्थिति</p>
+        <div class="mt-2">
+          <Badge :variant="c.status">{{
+            c.status.replace('_', ' ')
+          }}</Badge>
+        </div>
+      </Card>
+      <Card>
+        <p class="text-xs text-muted-foreground">
+          Assigned to · ठेकेदार
+        </p>
+        <p class="font-semibold mt-1 truncate">
+          {{ assignedContractor ? assignedContractor.name : '— none —' }}
+          <span
+            v-if="assignedContractor?.average_rating"
+            class="text-amber-500"
+            >⭐ {{ assignedContractor.average_rating }}</span
+          >
+        </p>
+      </Card>
+      <Card>
+        <p class="text-xs text-muted-foreground">
+          Est. completion · अनुमानित
+        </p>
+        <p class="font-semibold mt-1">{{ estCompletion || '—' }}</p>
+      </Card>
+      <Card>
+        <p class="text-xs text-muted-foreground">
+          Days pending · दिन
+        </p>
+        <p class="text-2xl font-bold mt-1">{{ daysPending }}</p>
+      </Card>
     </div>
 
     <!-- status timeline -->

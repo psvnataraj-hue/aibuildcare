@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Wrench,
   BarChart3,
+  Settings as SettingsIcon,
   LogOut,
   Moon,
   Sun,
@@ -17,10 +18,11 @@ const route = useRoute()
 const router = useRouter()
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/complaints', label: 'Complaints', icon: ClipboardList },
-  { to: '/contractors', label: 'Contractors', icon: Wrench },
-  { to: '/performance', label: 'Performance', icon: BarChart3 },
+  { to: '/', label: 'Dashboard · डैशबोर्ड', icon: LayoutDashboard },
+  { to: '/complaints', label: 'Complaints · शिकायतें', icon: ClipboardList },
+  { to: '/performance', label: 'Contractors · ठेकेदार', icon: Wrench },
+  { to: '/analytics', label: 'Analytics · विश्लेषण', icon: BarChart3 },
+  { to: '/settings', label: 'Settings · सेटिंग्स', icon: SettingsIcon },
 ]
 
 function logout() {
