@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Users, ClipboardCheck, CheckCircle2 } from 'lucide-vue-next'
+import {
+  Users,
+  ClipboardCheck,
+  CheckCircle2,
+  Star,
+} from 'lucide-vue-next'
 import { api, type ContractorPerf } from '../api'
 import Card from '../components/ui/Card.vue'
 import Spinner from '../components/ui/Spinner.vue'
@@ -10,7 +15,10 @@ const rows = ref<ContractorPerf[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
-  rows.value = await api.contractorPerformance()
+  const data = await api.contractorPerformance()
+  // default: highest rating first
+  data.sort((a, b) => (b.average_rating ?? 0) - (a.average_rating ?? 0))
+  rows.value = data
   loading.value = false
 })
 
@@ -23,6 +31,7 @@ const totals = computed(() => ({
 const COLUMNS = [
   { key: 'name', label: 'Contractor' },
   { key: 'specialty', label: 'Specialty' },
+  { key: 'average_rating', label: 'Rating' },
   { key: 'assigned_count', label: 'Assigned' },
   { key: 'resolved_count', label: 'Resolved' },
   { key: 'avg_response_time_hours', label: 'Avg response (h)' },
@@ -68,6 +77,14 @@ const fmt = (v: number | null) => (v == null ? '—' : v)
 
     <Card :padded="false">
       <DataTable :columns="COLUMNS" :rows="rows">
+        <template #average_rating="{ value }">
+          <span
+            class="inline-flex items-center gap-1 text-amber-500 font-medium"
+          >
+            <Star class="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            {{ value ?? '—' }}
+          </span>
+        </template>
         <template #avg_response_time_hours="{ value }">{{
           fmt(value)
         }}</template>

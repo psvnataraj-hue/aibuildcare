@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     name        TEXT NOT NULL,
     phone       TEXT,
     specialty   TEXT,
+    average_rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
     is_active   INTEGER NOT NULL DEFAULT 1,
     created_at  TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
 );

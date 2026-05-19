@@ -79,10 +79,53 @@ def create_complaint(
             "VALUES (?,?,?)",
             (cid, "system", ack),
         )
+        # --- smart auto-assignment (Phase 4.5) ---------------------------
+        from ..config import get_settings
+        from .contractor_router import best_contractor
+
+        con = (
+            best_contractor(parsed.category)
+            if get_settings().auto_assign_enabled
+            else None
+        )
+        if con:
+            conn.execute(
+                "UPDATE complaints SET contractor_id = ?, "
+                "status = 'assigned', updated_at = ? WHERE id = ?",
+                (con["id"], _now(), cid),
+            )
+            conn.execute(
+                "INSERT INTO complaint_status_history (complaint_id, "
+                "from_status, to_status, changed_by) VALUES (?,?,?,?)",
+                (cid, "received", "assigned", "auto-router"),
+            )
+            conn.execute(
+                "INSERT INTO complaint_messages (complaint_id, sender, "
+                "body) VALUES (?,?,?)",
+                (
+                    cid,
+                    "system",
+                    f"Auto-assigned to {con['name']} "
+                    f"(rating {con['average_rating']}).",
+                ),
+            )
         row = conn.execute(
             "SELECT * FROM complaints WHERE id = ?", (cid,)
         ).fetchone()
-        return _row_to_dict(row)
+        result = _row_to_dict(row)
+
+    # notify the auto-assigned contractor (graceful no-op w/o Twilio)
+    if con and con.get("phone"):
+        from .notify import send_whatsapp
+
+        send_whatsapp(
+            con["phone"],
+            f"{ACK_TICK} ASSIGNED: {con['name']}. Unit "
+            f"{result.get('unit_number') or '?'}, "
+            f"{result.get('category')} ({result['ticket_number']}). "
+            f"Status: Assigned.",
+        )
+    return result
 
 
 def list_complaints(
@@ -321,6 +364,7 @@ def contractor_performance(contractor_id: int | None = None) -> list[dict]:
                     "name": con["name"],
                     "phone": con["phone"],
                     "specialty": con["specialty"],
+                    "average_rating": con.get("average_rating"),
                     "assigned_count": assigned,
                     "resolved_count": resolved,
                     "avg_response_time_hours": _avg_hours(resp_pairs),

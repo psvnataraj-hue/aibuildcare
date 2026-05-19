@@ -77,9 +77,16 @@ async function load() {
   c.value = await api.getComplaint(id)
   loading.value = false
 }
+const assignedContractor = computed(() =>
+  contractors.value.find((x) => x.id === c.value?.contractor_id) || null
+)
+
 onMounted(async () => {
   await load()
-  contractors.value = await api.contractors()
+  // category-specific list, best-rated first (for manual override)
+  contractors.value = c.value?.category
+    ? await api.contractorsByCategory(c.value.category)
+    : await api.contractors()
 })
 
 async function send() {
@@ -315,21 +322,42 @@ async function setStatus(s: string) {
           </div>
         </div>
         <div>
-          <p class="text-sm text-muted-foreground mb-1">Assign contractor</p>
+          <p class="text-sm text-muted-foreground mb-1">Contractor</p>
+          <div
+            v-if="assignedContractor"
+            class="rounded-md border bg-secondary/40 px-3 py-2 mb-2"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold">{{
+                assignedContractor.name
+              }}</span>
+              <span
+                class="inline-flex items-center gap-1 text-amber-500 text-sm font-medium"
+              >
+                <Star class="h-4 w-4 fill-amber-400 text-amber-400" />
+                {{ assignedContractor.average_rating ?? '—' }}
+              </span>
+            </div>
+            <p class="text-xs text-muted-foreground mt-0.5">
+              Auto-selected by rating · change below to override
+            </p>
+          </div>
           <select
             v-model="pick"
             class="w-full bg-background border rounded-md px-2 py-2 mb-2"
           >
-            <option :value="null">Select…</option>
+            <option :value="null">
+              {{ assignedContractor ? 'Change contractor…' : 'Select…' }}
+            </option>
             <option v-for="ct in contractors" :key="ct.id" :value="ct.id">
-              {{ ct.name }} ({{ ct.specialty }})
+              {{ ct.name }} — ⭐ {{ ct.average_rating ?? '—' }}
             </option>
           </select>
           <button
             class="w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
             @click="assign"
           >
-            Assign
+            {{ assignedContractor ? 'Reassign' : 'Assign' }}
           </button>
         </div>
         <p

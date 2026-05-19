@@ -19,6 +19,9 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("AIBUILDCARE_SENDGRID_API_KEY", "")
     monkeypatch.setenv("AIBUILDCARE_SEED_ADMIN_EMAIL", "admin@aibuildcare.app")
     monkeypatch.setenv("AIBUILDCARE_SEED_ADMIN_PASSWORD", "Secret!123")
+    # keep existing per-test status assertions meaningful; the dedicated
+    # auto-assign tests re-enable this explicitly.
+    monkeypatch.setenv("AIBUILDCARE_AUTO_ASSIGN_ENABLED", "false")
 
     from app.config import get_settings
 

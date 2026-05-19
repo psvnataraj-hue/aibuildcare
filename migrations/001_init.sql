@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     name          TEXT NOT NULL,
     phone         TEXT,
     specialty     TEXT,
+    average_rating REAL NOT NULL DEFAULT 5.0,
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );

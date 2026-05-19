@@ -63,6 +63,7 @@ export interface Contractor {
   name: string
   specialty: string
   phone: string
+  average_rating?: number
 }
 export interface Rating {
   rating: number
@@ -74,6 +75,7 @@ export interface ContractorPerf {
   name: string
   phone: string
   specialty: string
+  average_rating: number | null
   assigned_count: number
   resolved_count: number
   avg_response_time_hours: number | null
@@ -121,6 +123,12 @@ export const api = {
       body: JSON.stringify({ sender: 'staff', body }),
     }),
   contractors: () => req<Contractor[]>('/api/v1/contractors'),
+  contractorsByCategory: (category: string) =>
+    req<Contractor[]>(
+      `/api/v1/contractors/by-category?category=${encodeURIComponent(
+        category || ''
+      )}`
+    ),
   contractorPerformance: () =>
     req<ContractorPerf[]>('/api/v1/contractors/performance'),
   rate: (id: number, rating: number, feedback: string) =>

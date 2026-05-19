@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # gracefully degrades where torch/RAM is unavailable (e.g. Render free).
     whisper_model: str = "base"
 
+    # Smart auto-assignment on complaint create (Phase 4.5). On in prod;
+    # the existing test suite disables it so per-test status assertions
+    # stay meaningful; the dedicated auto-assign tests opt back in.
+    auto_assign_enabled: bool = True
+
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "https://aibuildcare-web.onrender.com,"
