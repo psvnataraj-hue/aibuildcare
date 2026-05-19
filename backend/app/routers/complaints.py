@@ -93,8 +93,8 @@ async def assign(
     if con and con.get("phone"):
         send_whatsapp(
             con["phone"],
-            f"{svc.ACK_TICK} New complaint assigned: Unit "
-            f"{c.get('unit_number') or '?'}, {c.get('category')} issue "
+            f"{svc.ACK_TICK} New complaint assigned to {con['name']}. "
+            f"Unit {c.get('unit_number') or '?'}, {c.get('category')} "
             f"({c['ticket_number']}). Status: Assigned.",
         )
     await hub.broadcast("complaint.updated", c)

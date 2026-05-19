@@ -26,6 +26,10 @@ def test_assign_contractor_notify(client, auth_header, monkeypatch):
     assert phone.startswith("+91")
     assert r.json()["ticket_number"] in body
     assert "assigned" in body.lower()
+    # message must name the contractor (seeded id 1)
+    from app.services import complaint_service as svc
+
+    assert svc.get_contractor(1)["name"] in body
 
 
 def test_assign_invalid_contractor_no_notify(client, auth_header, monkeypatch):
