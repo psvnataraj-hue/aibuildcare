@@ -76,6 +76,19 @@ def _next_ticket(conn) -> str:
     return f"SER-{year}-{row['c'] + 1:05d}"
 
 
+def _default_society_id(conn) -> int:
+    """Fallback tenant for back-compat callers (webhooks, legacy)
+    until per-society inbound routing (Enterprise R1) lands."""
+    r = conn.execute(
+        "SELECT id FROM societies ORDER BY id LIMIT 1"
+    ).fetchone()
+    return dict(r)["id"] if r else 1
+
+
+def _sid(conn, society_id: int | None) -> int:
+    return society_id if society_id is not None else _default_society_id(conn)
+
+
 def _row_to_dict(row) -> dict | None:
     if not row:
         return None
@@ -95,20 +108,24 @@ def create_complaint(
     reporter_phone: str | None = None,
     reporter_email: str | None = None,
     image_urls: list[str] | None = None,
+    society_id: int | None = None,
 ) -> dict:
     parsed = parse_complaint(raw_text, image_urls)
     media = ",".join(image_urls) if image_urls else None
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         ticket = _next_ticket(conn)
         ack = f"{ACK_TICK} Ticket {ticket}. {parsed.acknowledgement}"
         cur = conn.execute(
-            "INSERT INTO complaints (ticket_number, unit_number, category, "
+            "INSERT INTO complaints (ticket_number, society_id, "
+            "unit_number, category, "
             "priority, status, channel, raw_text, acknowledgement, "
             "reporter_phone, reporter_email, media_urls, detected_language, "
             "official_summaries, created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 ticket,
+                sid,
                 parsed.unit_number,
                 parsed.category,
                 parsed.priority,
@@ -196,39 +213,49 @@ def list_complaints(
     status: str | None = None,
     q: str | None = None,
     sort: str = "created_at",
+    society_id: int | None = None,
 ) -> list[dict]:
     sort_col = (
         sort if sort in {"created_at", "priority", "status"} else "created_at"
     )
-    sql = "SELECT * FROM complaints"
-    clauses, params = [], []
-    if status:
-        clauses.append("status = ?")
-        params.append(status)
-    if q:
-        clauses.append(
-            "(raw_text LIKE ? OR ticket_number LIKE ? OR unit_number LIKE ?)"
-        )
-        params += [f"%{q}%"] * 3
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
-    sql += f" ORDER BY {sort_col} DESC"
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        clauses = ["society_id = ?"]  # tenant boundary, always applied
+        params: list = [sid]
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if q:
+            clauses.append(
+                "(raw_text LIKE ? OR ticket_number LIKE ? "
+                "OR unit_number LIKE ?)"
+            )
+            params += [f"%{q}%"] * 3
+        sql = (
+            "SELECT * FROM complaints WHERE "
+            + " AND ".join(clauses)
+            + f" ORDER BY {sort_col} DESC"
+        )
         return [_row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
-def get_complaint(cid: int) -> dict:
+def get_complaint(cid: int, society_id: int | None = None) -> dict:
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         row = conn.execute(
-            "SELECT * FROM complaints WHERE id = ?", (cid,)
+            "SELECT * FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
         ).fetchone()
         if not row:
             raise ComplaintError("complaint not found")
         return _row_to_dict(row)
 
 
-def assign_contractor(cid: int, contractor_id: int) -> dict:
+def assign_contractor(
+    cid: int, contractor_id: int, society_id: int | None = None
+) -> dict:
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         c = conn.execute(
             "SELECT id FROM contractors WHERE id = ? AND is_active = 1",
             (contractor_id,),
@@ -237,8 +264,8 @@ def assign_contractor(cid: int, contractor_id: int) -> dict:
             raise ComplaintError("contractor not found")
         cur = conn.execute(
             "UPDATE complaints SET contractor_id = ?, status = 'assigned', "
-            "updated_at = ? WHERE id = ?",
-            (contractor_id, _now(), cid),
+            "updated_at = ? WHERE id = ? AND society_id = ?",
+            (contractor_id, _now(), cid, sid),
         )
         if cur.rowcount == 0:
             raise ComplaintError("complaint not found")
@@ -253,12 +280,16 @@ def assign_contractor(cid: int, contractor_id: int) -> dict:
         return _row_to_dict(row)
 
 
-def update_status(cid: int, new_status: str) -> dict:
+def update_status(
+    cid: int, new_status: str, society_id: int | None = None
+) -> dict:
     if new_status not in STATUS_FLOW:
         raise ComplaintError(f"invalid status: {new_status}")
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         row = conn.execute(
-            "SELECT status FROM complaints WHERE id = ?", (cid,)
+            "SELECT status FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
         ).fetchone()
         if not row:
             raise ComplaintError("complaint not found")
@@ -284,10 +315,14 @@ def update_status(cid: int, new_status: str) -> dict:
         return _row_to_dict(out)
 
 
-def add_message(cid: int, sender: str, body: str) -> dict:
+def add_message(
+    cid: int, sender: str, body: str, society_id: int | None = None
+) -> dict:
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         exists = conn.execute(
-            "SELECT 1 FROM complaints WHERE id = ?", (cid,)
+            "SELECT 1 FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
         ).fetchone()
         if not exists:
             raise ComplaintError("complaint not found")
@@ -303,8 +338,15 @@ def add_message(cid: int, sender: str, body: str) -> dict:
         return dict(row)
 
 
-def list_messages(cid: int) -> list[dict]:
+def list_messages(cid: int, society_id: int | None = None) -> list[dict]:
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        owns = conn.execute(
+            "SELECT 1 FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
+        ).fetchone()
+        if not owns:
+            return []  # cross-society: reveal nothing
         return [
             dict(r)
             for r in conn.execute(
@@ -323,12 +365,17 @@ def get_contractor(contractor_id: int) -> dict | None:
         return dict(row) if row else None
 
 
-def rate_complaint(cid: int, rating: int, feedback: str | None) -> dict:
+def rate_complaint(
+    cid: int, rating: int, feedback: str | None,
+    society_id: int | None = None,
+) -> dict:
     if rating < 1 or rating > 5:
         raise ComplaintError("rating must be 1-5")
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
         row = conn.execute(
-            "SELECT status FROM complaints WHERE id = ?", (cid,)
+            "SELECT status FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
         ).fetchone()
         if not row:
             raise ComplaintError("complaint not found")
@@ -352,8 +399,15 @@ def rate_complaint(cid: int, rating: int, feedback: str | None) -> dict:
         return dict(out)
 
 
-def get_rating(cid: int) -> dict | None:
+def get_rating(cid: int, society_id: int | None = None) -> dict | None:
     with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        owns = conn.execute(
+            "SELECT 1 FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
+        ).fetchone()
+        if not owns:
+            return None
         row = conn.execute(
             "SELECT rating, feedback, created_at AS rated_at "
             "FROM complaint_ratings WHERE complaint_id = ?",

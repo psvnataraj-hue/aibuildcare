@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
-from ..deps import current_user
+from ..deps import current_user, current_society
 from ..schemas import (
     ComplaintCreate,
     AssignRequest,
@@ -40,17 +40,20 @@ def list_complaints(
     status: str | None = None,
     q: str | None = None,
     sort: str = "created_at",
-    _: dict = Depends(current_user),
+    sid: int = Depends(current_society),
 ) -> list[dict]:
-    return svc.list_complaints(status=status, q=q, sort=sort)
+    return svc.list_complaints(
+        status=status, q=q, sort=sort, society_id=sid
+    )
 
 
 @router.post("/complaints", status_code=201)
 async def create_complaint(
-    body: ComplaintCreate, _: dict = Depends(current_user)
+    body: ComplaintCreate, sid: int = Depends(current_society)
 ) -> dict:
     c = svc.create_complaint(
-        body.raw_text, body.channel, body.reporter_phone, body.reporter_email
+        body.raw_text, body.channel, body.reporter_phone,
+        body.reporter_email, society_id=sid,
     )
     await hub.broadcast("complaint.created", c)
     return c
@@ -110,28 +113,30 @@ def contractor_performance(
 
 
 @router.get("/complaints/{cid}")
-def get_complaint(cid: int, _: dict = Depends(current_user)) -> dict:
+def get_complaint(
+    cid: int, sid: int = Depends(current_society)
+) -> dict:
     try:
-        c = svc.get_complaint(cid)
+        c = svc.get_complaint(cid, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    c["messages"] = svc.list_messages(cid)
-    c["rating"] = svc.get_rating(cid)
+    c["messages"] = svc.list_messages(cid, society_id=sid)
+    c["rating"] = svc.get_rating(cid, society_id=sid)
     return c
 
 
 @router.post("/complaints/{cid}/assign")
 async def assign(
-    cid: int, body: AssignRequest, _: dict = Depends(current_user)
+    cid: int, body: AssignRequest, sid: int = Depends(current_society)
 ) -> dict:
     # capture prior contractor for reassignment notice
     try:
-        prev = svc.get_complaint(cid)
+        prev = svc.get_complaint(cid, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
     prev_cid = prev.get("contractor_id")
     try:
-        c = svc.assign_contractor(cid, body.contractor_id)
+        c = svc.assign_contractor(cid, body.contractor_id, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -160,10 +165,12 @@ async def assign(
 
 @router.post("/complaints/{cid}/rate")
 async def rate(
-    cid: int, body: RateRequest, _: dict = Depends(current_user)
+    cid: int, body: RateRequest, sid: int = Depends(current_society)
 ) -> dict:
     try:
-        r = svc.rate_complaint(cid, body.rating, body.feedback)
+        r = svc.rate_complaint(
+            cid, body.rating, body.feedback, society_id=sid
+        )
     except svc.ComplaintError as e:
         code = 404 if "not found" in str(e) else 400
         raise HTTPException(status_code=code, detail=str(e))
@@ -173,10 +180,11 @@ async def rate(
 
 @router.post("/complaints/{cid}/status")
 async def set_status(
-    cid: int, body: StatusUpdateRequest, _: dict = Depends(current_user)
+    cid: int, body: StatusUpdateRequest,
+    sid: int = Depends(current_society),
 ) -> dict:
     try:
-        c = svc.update_status(cid, body.status)
+        c = svc.update_status(cid, body.status, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await hub.broadcast("complaint.updated", c)
@@ -184,16 +192,18 @@ async def set_status(
 
 
 @router.get("/complaints/{cid}/messages")
-def messages(cid: int, _: dict = Depends(current_user)) -> list[dict]:
-    return svc.list_messages(cid)
+def messages(
+    cid: int, sid: int = Depends(current_society)
+) -> list[dict]:
+    return svc.list_messages(cid, society_id=sid)
 
 
 @router.post("/complaints/{cid}/messages", status_code=201)
 async def add_message(
-    cid: int, body: MessageCreate, _: dict = Depends(current_user)
+    cid: int, body: MessageCreate, sid: int = Depends(current_society)
 ) -> dict:
     try:
-        m = svc.add_message(cid, body.sender, body.body)
+        m = svc.add_message(cid, body.sender, body.body, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
     await hub.broadcast("message.created", m)
