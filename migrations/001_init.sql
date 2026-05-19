@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     contractor_id   INTEGER REFERENCES contractors(id),
     media_urls      TEXT,
     detected_language TEXT,
+    estimated_completion_date TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at     TEXT
@@ -100,6 +101,15 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     expires_at    TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS system_config (
+    config_key   TEXT PRIMARY KEY,
+    config_value TEXT NOT NULL,
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES
+    ('max_pending_jobs_per_contractor', '10'),
+    ('load_balancing_enabled', 'true');
 
 INSERT OR IGNORE INTO categories (name, sla_hours) VALUES
     ('AC/Cooling', 4),

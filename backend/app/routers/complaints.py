@@ -7,8 +7,10 @@ from ..schemas import (
     StatusUpdateRequest,
     MessageCreate,
     RateRequest,
+    ConfigUpdate,
 )
 from ..services import complaint_service as svc
+from ..services import system_config
 from ..services.ws_hub import hub
 from ..services.notify import send_whatsapp
 
@@ -52,6 +54,35 @@ async def create_complaint(
     )
     await hub.broadcast("complaint.created", c)
     return c
+
+
+@router.get("/admin/config")
+def get_admin_config(_: dict = Depends(current_user)) -> dict:
+    return system_config.all_config()
+
+
+@router.post("/admin/config/{key}")
+def set_admin_config(
+    key: str, body: ConfigUpdate, _: dict = Depends(current_user)
+) -> dict:
+    return system_config.set_config(key, body.value)
+
+
+@router.get("/contractors/analytics/summary")
+def contractors_analytics_summary(
+    _: dict = Depends(current_user),
+) -> dict:
+    return svc.analytics_summary()
+
+
+@router.get("/contractors/{cid}/analytics")
+def contractor_analytics(
+    cid: int, _: dict = Depends(current_user)
+) -> dict:
+    a = svc.contractor_analytics(cid)
+    if not a:
+        raise HTTPException(status_code=404, detail="contractor not found")
+    return a
 
 
 @router.get("/contractors/by-category")

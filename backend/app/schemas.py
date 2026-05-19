@@ -51,6 +51,10 @@ class RateRequest(BaseModel):
     feedback: str | None = None
 
 
+class ConfigUpdate(BaseModel):
+    value: str
+
+
 class ParsedComplaint(BaseModel):
     unit_number: str | None = None
     category: str = "Other"

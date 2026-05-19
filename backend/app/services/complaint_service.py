@@ -1,7 +1,53 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from ..db import get_conn
 from .haiku_parser import parse_complaint
+
+# fallback completion estimate (hours) when there is no history yet
+DEFAULT_FORECAST_HOURS = {
+    "AC/Cooling": 24,
+    "Plumbing": 24,
+    "Electrical": 12,
+    "Elevator": 6,
+    "Housekeeping": 24,
+    "Security": 6,
+    "Other": 48,
+}
+
+
+def category_avg_resolution_hours(category: str | None) -> float:
+    """Avg assigned->resolved hours for the category from history,
+    else a sensible per-category default."""
+    default = DEFAULT_FORECAST_HOURS.get(category or "", 48)
+    if not category:
+        return float(default)
+    with get_conn() as conn:
+        ids = [
+            dict(r)["id"]
+            for r in conn.execute(
+                "SELECT id FROM complaints WHERE category = ? "
+                "AND status IN ('resolved','closed')",
+                (category,),
+            ).fetchall()
+        ]
+        pairs = []
+        for cid in ids:
+            hist = [
+                dict(h)
+                for h in conn.execute(
+                    "SELECT to_status, created_at FROM "
+                    "complaint_status_history WHERE complaint_id = ? "
+                    "ORDER BY created_at",
+                    (cid,),
+                ).fetchall()
+            ]
+            first: dict = {}
+            for h in hist:
+                first.setdefault(h["to_status"], h["created_at"])
+            if "assigned" in first and "resolved" in first:
+                pairs.append((first["assigned"], first["resolved"]))
+    hrs = _avg_hours(pairs)
+    return float(hrs) if hrs else float(default)
 
 STATUS_FLOW = [
     "received",
@@ -89,10 +135,17 @@ def create_complaint(
             else None
         )
         if con:
+            eta = (
+                datetime.now(timezone.utc)
+                + timedelta(
+                    hours=category_avg_resolution_hours(parsed.category)
+                )
+            ).isoformat()
             conn.execute(
                 "UPDATE complaints SET contractor_id = ?, "
-                "status = 'assigned', updated_at = ? WHERE id = ?",
-                (con["id"], _now(), cid),
+                "status = 'assigned', updated_at = ?, "
+                "estimated_completion_date = ? WHERE id = ?",
+                (con["id"], _now(), eta, cid),
             )
             conn.execute(
                 "INSERT INTO complaint_status_history (complaint_id, "
@@ -378,6 +431,197 @@ def contractor_performance(contractor_id: int | None = None) -> list[dict]:
                 }
             )
         return out
+
+
+def _spans_hours(pairs):
+    out = []
+    for a, b in pairs:
+        try:
+            out.append(
+                (datetime.fromisoformat(b) - datetime.fromisoformat(a))
+                .total_seconds()
+                / 3600
+            )
+        except Exception:
+            continue
+    return out
+
+
+def _hist_first(conn, cid):
+    first = {}
+    for h in conn.execute(
+        "SELECT to_status, created_at FROM complaint_status_history "
+        "WHERE complaint_id = ? ORDER BY created_at",
+        (cid,),
+    ).fetchall():
+        d = dict(h)
+        first.setdefault(d["to_status"], d["created_at"])
+    return first
+
+
+def contractor_analytics(contractor_id: int) -> dict | None:
+    with get_conn() as conn:
+        crow = conn.execute(
+            "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
+        ).fetchone()
+        if not crow:
+            return None
+        con = dict(crow)
+        comps = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT id, status, category, updated_at FROM complaints "
+                "WHERE contractor_id = ?",
+                (contractor_id,),
+            ).fetchall()
+        ]
+        open_set = {"received", "acknowledged", "assigned"}
+        pending = sum(1 for c in comps if c["status"] in open_set)
+        in_prog = sum(1 for c in comps if c["status"] == "in_progress")
+        completed = sum(
+            1 for c in comps if c["status"] in ("resolved", "closed")
+        )
+        resp, reso = [], []
+        for c in comps:
+            f = _hist_first(conn, c["id"])
+            if "assigned" in f and "in_progress" in f:
+                resp.append((f["assigned"], f["in_progress"]))
+            if "assigned" in f and "resolved" in f:
+                reso.append((f["assigned"], f["resolved"]))
+        rs, rz = _spans_hours(resp), _spans_hours(reso)
+        ratings = [
+            dict(r)["rating"]
+            for r in conn.execute(
+                "SELECT cr.rating FROM complaint_ratings cr "
+                "JOIN complaints c ON c.id = cr.complaint_id "
+                "WHERE c.contractor_id = ? ORDER BY cr.created_at",
+                (contractor_id,),
+            ).fetchall()
+        ]
+        spec: dict = {}
+        for c in comps:
+            cat = c["category"] or "Other"
+            spec.setdefault(cat, 0)
+            if c["status"] in ("resolved", "closed"):
+                spec[cat] += 1
+        total = len(comps) or 1
+
+        def stat(xs):
+            return {
+                "avg_hours": round(sum(xs) / len(xs), 2) if xs else None,
+                "min_hours": round(min(xs), 2) if xs else None,
+                "max_hours": round(max(xs), 2) if xs else None,
+                "trend": [round(x, 2) for x in xs[-5:]],
+            }
+
+        return {
+            "contractor_id": con["id"],
+            "name": con["name"],
+            "rating": con.get("average_rating"),
+            "workload": {
+                "pending_count": pending,
+                "in_progress_count": in_prog,
+                "completed_count": completed,
+                "total_assigned": len(comps),
+            },
+            "response_time": stat(rs),
+            "resolution_time": stat(rz),
+            "rating_trend": {
+                "current": con.get("average_rating"),
+                "data_points": ratings[-5:],
+                "samples": len(ratings),
+            },
+            "category_specialization": {
+                k: {
+                    "completed": v,
+                    "pct_of_total": round(v / total * 100, 1),
+                }
+                for k, v in spec.items()
+            },
+            "availability": {
+                "status": "online" if con.get("is_active") else "inactive",
+                "last_activity": max(
+                    (c["updated_at"] for c in comps), default=None
+                ),
+            },
+        }
+
+
+def analytics_summary() -> dict:
+    from . import system_config
+
+    cap = system_config.get_int("max_pending_jobs_per_contractor", 10)
+    with get_conn() as conn:
+        cons = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM contractors WHERE is_active = 1"
+            ).fetchall()
+        ]
+        total_all = dict(
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM contractors"
+            ).fetchone()
+        )["c"]
+        perf = contractor_performance()
+    ratings = [
+        c["average_rating"] for c in cons if c.get("average_rating")
+    ]
+    avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+    by_id = {p["contractor_id"]: p for p in perf}
+    top = sorted(
+        perf, key=lambda p: (p["resolved_count"], p.get("average_rating") or 0),
+        reverse=True,
+    )[:5]
+    available = at_cap = 0
+    for c in cons:
+        from .contractor_router import pending_count
+
+        if pending_count(c["id"]) >= cap:
+            at_cap += 1
+        else:
+            available += 1
+    cat_perf: dict = {}
+    for p in perf:
+        cat = (p.get("specialty") or "Other").split(",")[0]
+        cat_perf.setdefault(cat, {"resp": [], "reso": []})
+        if p["avg_response_time_hours"] is not None:
+            cat_perf[cat]["resp"].append(p["avg_response_time_hours"])
+        if p["avg_resolution_time_hours"] is not None:
+            cat_perf[cat]["reso"].append(p["avg_resolution_time_hours"])
+    return {
+        "total_contractors": total_all,
+        "active_contractors": len(cons),
+        "avg_rating_across_all": avg_rating,
+        "top_performers": [
+            {
+                "name": t["name"],
+                "rating": by_id[t["contractor_id"]].get("average_rating"),
+                "completed": t["resolved_count"],
+            }
+            for t in top
+        ],
+        "workload_distribution": {
+            "available": available,
+            "at_capacity": at_cap,
+            "overloaded": 0,
+        },
+        "category_performance": {
+            k: {
+                "avg_response_time": (
+                    round(sum(v["resp"]) / len(v["resp"]), 2)
+                    if v["resp"]
+                    else None
+                ),
+                "avg_resolution_time": (
+                    round(sum(v["reso"]) / len(v["reso"]), 2)
+                    if v["reso"]
+                    else None
+                ),
+            }
+            for k, v in cat_perf.items()
+        },
+    }
 
 
 def analytics() -> dict:
