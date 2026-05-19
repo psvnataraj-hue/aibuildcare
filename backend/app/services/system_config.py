@@ -8,6 +8,10 @@ from ..db import get_conn
 DEFAULTS = {
     "max_pending_jobs_per_contractor": "10",
     "load_balancing_enabled": "true",
+    # Comma-separated language codes for the staff-facing complaint
+    # summary the parser generates. Default Hindi; a society can set
+    # e.g. "en,hi,mr" to get all three. No code/migration needed.
+    "official_summary_languages": "hi",
 }
 
 

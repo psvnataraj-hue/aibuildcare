@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 
 from ..db import get_conn
@@ -76,7 +77,16 @@ def _next_ticket(conn) -> str:
 
 
 def _row_to_dict(row) -> dict | None:
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    if "official_summaries" in d:
+        raw = d["official_summaries"]
+        try:
+            d["official_summaries"] = json.loads(raw) if raw else {}
+        except (TypeError, ValueError):
+            d["official_summaries"] = {}
+    return d
 
 
 def create_complaint(
@@ -95,8 +105,8 @@ def create_complaint(
             "INSERT INTO complaints (ticket_number, unit_number, category, "
             "priority, status, channel, raw_text, acknowledgement, "
             "reporter_phone, reporter_email, media_urls, detected_language, "
-            "created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "official_summaries, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 ticket,
                 parsed.unit_number,
@@ -110,6 +120,7 @@ def create_complaint(
                 reporter_email,
                 media,
                 parsed.detected_language,
+                json.dumps(parsed.official_summaries or {}),
                 _now(),
                 _now(),
             ),
@@ -203,7 +214,7 @@ def list_complaints(
         sql += " WHERE " + " AND ".join(clauses)
     sql += f" ORDER BY {sort_col} DESC"
     with get_conn() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+        return [_row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
 def get_complaint(cid: int) -> dict:
@@ -213,7 +224,7 @@ def get_complaint(cid: int) -> dict:
         ).fetchone()
         if not row:
             raise ComplaintError("complaint not found")
-        return dict(row)
+        return _row_to_dict(row)
 
 
 def assign_contractor(cid: int, contractor_id: int) -> dict:
@@ -239,7 +250,7 @@ def assign_contractor(cid: int, contractor_id: int) -> dict:
         row = conn.execute(
             "SELECT * FROM complaints WHERE id = ?", (cid,)
         ).fetchone()
-        return dict(row)
+        return _row_to_dict(row)
 
 
 def update_status(cid: int, new_status: str) -> dict:
@@ -270,7 +281,7 @@ def update_status(cid: int, new_status: str) -> dict:
         out = conn.execute(
             "SELECT * FROM complaints WHERE id = ?", (cid,)
         ).fetchone()
-        return dict(out)
+        return _row_to_dict(out)
 
 
 def add_message(cid: int, sender: str, body: str) -> dict:

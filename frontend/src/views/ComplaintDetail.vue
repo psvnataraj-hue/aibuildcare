@@ -66,6 +66,25 @@ const FLOW = [
   'closed',
 ]
 
+const LANG_LABEL: Record<string, string> = {
+  en: 'English',
+  hi: 'हिंदी (Hindi)',
+  mr: 'मराठी (Marathi)',
+  bn: 'বাংলা (Bengali)',
+  te: 'తెలుగు (Telugu)',
+  gu: 'ગુજરાતી (Gujarati)',
+  pa: 'ਪੰਜਾਬੀ (Punjabi)',
+  kn: 'ಕನ್ನಡ (Kannada)',
+  ta: 'தமிழ் (Tamil)',
+  ml: 'മലയാളം (Malayalam)',
+  od: 'ଓଡ଼ିଆ (Odia)',
+}
+const summaryEntries = computed(() =>
+  Object.entries(c.value?.official_summaries || {}).filter(
+    ([, v]) => v && v.trim()
+  )
+)
+
 const photos = computed(() =>
   (c.value?.media_urls || '')
     .split(',')
@@ -166,6 +185,27 @@ async function setStatus(s: string) {
       </p>
       <p class="text-sm mt-2">{{ c.raw_text }}</p>
     </div>
+
+    <!-- staff-facing AI summary (for officials who may not read the
+         resident's language) -->
+    <Card v-if="summaryEntries.length">
+      <div class="flex items-center gap-2 mb-3">
+        <Languages class="h-4 w-4 text-primary" />
+        <h2 class="font-semibold">
+          Summary for staff · स्टाफ हेतु सारांश
+        </h2>
+      </div>
+      <div class="space-y-3">
+        <div v-for="[code, txt] in summaryEntries" :key="code">
+          <p
+            class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            {{ LANG_LABEL[code] || code }}
+          </p>
+          <p class="text-sm mt-0.5">{{ txt }}</p>
+        </div>
+      </div>
+    </Card>
 
     <!-- key info cards (at a glance) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">

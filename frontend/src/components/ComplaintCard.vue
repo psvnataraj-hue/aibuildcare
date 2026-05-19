@@ -28,6 +28,17 @@ const ICONS: Record<string, any> = {
 }
 const icon = computed(() => ICONS[props.c.category || ''] || Wrench)
 
+// prefer the staff summary (first configured language); fall back to
+// the raw text when no summary was generated
+const staffSummary = computed(() => {
+  const s = props.c.official_summaries
+  if (s) {
+    const first = Object.values(s).find((v) => v && v.trim())
+    if (first) return first
+  }
+  return props.c.raw_text
+})
+
 const ageDays = computed(() => {
   const d = Math.floor(
     (Date.now() - new Date(props.c.created_at).getTime()) / 86400000
@@ -75,7 +86,7 @@ const eta = computed(() =>
           <Badge :variant="c.priority">{{ c.priority }}</Badge>
         </div>
         <p class="text-sm mt-2 text-muted-foreground line-clamp-2">
-          {{ c.raw_text }}
+          {{ staffSummary }}
         </p>
         <p v-if="eta" class="text-xs mt-2">
           <span class="text-muted-foreground"

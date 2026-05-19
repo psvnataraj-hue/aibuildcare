@@ -24,6 +24,33 @@ CATEGORIES = [
     "Other",
 ]
 
+# Language codes a society may configure for the staff-facing summary.
+_LANG_NAMES = {
+    "en": "English", "hi": "Hindi", "mr": "Marathi", "bn": "Bengali",
+    "te": "Telugu", "gu": "Gujarati", "pa": "Punjabi", "kn": "Kannada",
+    "ta": "Tamil", "ml": "Malayalam", "od": "Odia",
+}
+
+
+def _configured_langs() -> list[str]:
+    """Validated list of summary language codes from system_config.
+
+    A config-store failure must never degrade parsing, so any error
+    falls back to the default language.
+    """
+    try:
+        from .system_config import get_config
+
+        raw = get_config("official_summary_languages", "hi") or "hi"
+    except Exception:
+        return ["hi"]
+    out: list[str] = []
+    for code in raw.split(","):
+        code = code.strip().lower()
+        if code in _LANG_NAMES and code not in out:
+            out.append(code)
+    return out or ["hi"]
+
 _KEYWORDS: dict[str, list[str]] = {
     "AC/Cooling": ["ac", "a/c", "air condition", "cooling", "thanda",
                    "fridge", "cooler"],
@@ -129,11 +156,31 @@ _SYSTEM = (
 )
 
 
+def _build_system(langs: list[str]) -> str:
+    """Base prompt + an instruction to also emit official_summaries
+    keyed by the configured language codes (for society staff who may
+    not read the resident's language)."""
+    names = ", ".join(f"{_LANG_NAMES[c]} ({c})" for c in langs)
+    codes = ", ".join(langs)
+    return (
+        _SYSTEM
+        + " Additionally include one more key, official_summaries: a JSON "
+        f"object whose keys are EXACTLY these language codes [{codes}] and "
+        "whose value for each is a clear 1-2 sentence factual summary of "
+        "the complaint (unit, problem, urgency) for society staff, written "
+        f"in that language regardless of the resident's language: {names}. "
+        "Still return JSON only."
+    )
+
+
 def _llm_parse(
-    text: str, image_urls: list[str] | None = None
+    text: str,
+    image_urls: list[str] | None = None,
+    langs: list[str] | None = None,
 ) -> ParsedComplaint:
     import anthropic
 
+    langs = langs or ["hi"]
     s = get_settings()
     client = anthropic.Anthropic(api_key=s.anthropic_api_key)
 
@@ -148,8 +195,8 @@ def _llm_parse(
 
     resp = client.messages.create(
         model=s.haiku_model,
-        max_tokens=500,
-        system=_SYSTEM,
+        max_tokens=900,  # room for several short staff summaries
+        system=_build_system(langs),
         messages=[{"role": "user", "content": content}],
     )
     body = resp.content[0].text.strip()
@@ -158,12 +205,19 @@ def _llm_parse(
     cat = data.get("category", "Other")
     if cat not in CATEGORIES:
         cat = "Other"
+    raw_sum = data.get("official_summaries") or {}
+    summaries = {
+        c: str(raw_sum[c]).strip()
+        for c in langs
+        if isinstance(raw_sum, dict) and raw_sum.get(c)
+    }
     return ParsedComplaint(
         unit_number=data.get("unit_number") or None,
         category=cat,
         priority=data.get("priority", "normal"),
         acknowledgement=data.get("acknowledgement", ""),
         detected_language=data.get("detected_language"),
+        official_summaries=summaries,
     )
 
 
@@ -179,6 +233,6 @@ def parse_complaint(
     if not s.anthropic_api_key:
         return rule_based_parse(text)
     try:
-        return _llm_parse(text, image_urls)
+        return _llm_parse(text, image_urls, _configured_langs())
     except Exception:
         return rule_based_parse(text)

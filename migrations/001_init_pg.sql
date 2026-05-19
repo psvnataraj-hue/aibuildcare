@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     contractor_id   INTEGER REFERENCES contractors(id),
     media_urls      TEXT,
     detected_language TEXT,
+    official_summaries TEXT,
     estimated_completion_date TEXT,
     created_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
     updated_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
@@ -70,6 +71,8 @@ CREATE TABLE IF NOT EXISTS complaints (
 );
 CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 CREATE INDEX IF NOT EXISTS idx_complaints_created ON complaints(created_at);
+-- additive migration for already-provisioned prod tables (idempotent)
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS official_summaries TEXT;
 
 CREATE TABLE IF NOT EXISTS complaint_messages (
     id           SERIAL PRIMARY KEY,

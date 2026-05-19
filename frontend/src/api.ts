@@ -47,6 +47,7 @@ export interface Complaint {
   contractor_id: number | null
   media_urls: string | null
   detected_language: string | null
+  official_summaries: Record<string, string> | null
   estimated_completion_date: string | null
   created_at: string
   updated_at: string

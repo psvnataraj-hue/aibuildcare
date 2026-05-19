@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     contractor_id   INTEGER REFERENCES contractors(id),
     media_urls      TEXT,
     detected_language TEXT,
+    official_summaries TEXT,
     estimated_completion_date TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),

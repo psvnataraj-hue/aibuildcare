@@ -61,3 +61,6 @@ class ParsedComplaint(BaseModel):
     priority: str = "normal"
     acknowledgement: str = ""
     detected_language: str | None = None
+    # staff-facing summary per configured language code, e.g.
+    # {"hi": "...", "en": "..."}. Empty on the rule-based fallback.
+    official_summaries: dict[str, str] = {}
