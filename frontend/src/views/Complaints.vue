@@ -6,6 +6,16 @@ import { api, openWS, type Complaint } from '../api'
 import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
+import DataTable from '../components/ui/DataTable.vue'
+
+const COLUMNS = [
+  { key: 'ticket_number', label: 'Ticket' },
+  { key: 'unit_number', label: 'Unit' },
+  { key: 'category', label: 'Category' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'status', label: 'Status' },
+  { key: 'channel', label: 'Channel' },
+]
 
 const router = useRouter()
 const items = ref<Complaint[]>([])
@@ -100,50 +110,36 @@ onUnmounted(() => ws?.close())
 
     <Card :padded="false">
       <Spinner v-if="loading" />
-      <table v-else class="w-full text-sm">
-        <thead class="text-left text-muted-foreground border-b">
-          <tr>
-            <th class="p-3 font-medium">Ticket</th>
-            <th class="p-3 font-medium">Unit</th>
-            <th class="p-3 font-medium">Category</th>
-            <th class="p-3 font-medium">Priority</th>
-            <th class="p-3 font-medium">Status</th>
-            <th class="p-3 font-medium">Channel</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="c in items"
-            :key="c.id"
-            class="border-b last:border-0 hover:bg-secondary/50 cursor-pointer"
-            @click="router.push(`/complaints/${c.id}`)"
-          >
-            <td class="p-3 font-mono text-xs">{{ c.ticket_number }}</td>
-            <td class="p-3">{{ c.unit_number || '—' }}</td>
-            <td class="p-3 flex items-center gap-1">
-              {{ c.category }}
-              <ImageIcon
-                v-if="c.media_urls"
-                class="h-3.5 w-3.5 text-muted-foreground"
-              />
-            </td>
-            <td class="p-3"><Badge :variant="c.priority">{{ c.priority }}</Badge></td>
-            <td class="p-3">
-              <Badge :variant="c.status">{{
-                c.status.replace('_', ' ')
-              }}</Badge>
-            </td>
-            <td class="p-3 capitalize text-muted-foreground">
-              {{ c.channel }}
-            </td>
-          </tr>
-          <tr v-if="!items.length">
-            <td colspan="6" class="p-8 text-center text-muted-foreground">
-              No complaints
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <DataTable
+        v-else
+        :columns="COLUMNS"
+        :rows="items"
+        @row-click="(r: Complaint) => router.push(`/complaints/${r.id}`)"
+      >
+        <template #ticket_number="{ value }">
+          <span class="font-mono text-xs">{{ value }}</span>
+        </template>
+        <template #unit_number="{ value }">{{ value || '—' }}</template>
+        <template #category="{ row }">
+          <span class="inline-flex items-center gap-1">
+            {{ row.category }}
+            <ImageIcon
+              v-if="row.media_urls"
+              class="h-3.5 w-3.5 text-muted-foreground"
+            />
+          </span>
+        </template>
+        <template #priority="{ value }">
+          <Badge :variant="value">{{ value }}</Badge>
+        </template>
+        <template #status="{ value }">
+          <Badge :variant="value">{{ value.replace('_', ' ') }}</Badge>
+        </template>
+        <template #channel="{ value }">
+          <span class="capitalize text-muted-foreground">{{ value }}</span>
+        </template>
+        <template #empty>No complaints</template>
+      </DataTable>
     </Card>
   </div>
 </template>

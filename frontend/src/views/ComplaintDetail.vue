@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Circle,
   Languages,
-  X,
 } from 'lucide-vue-next'
 import {
   api,
@@ -18,6 +17,7 @@ import {
 import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
+import ImageLightbox from '../components/ui/ImageLightbox.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -243,22 +243,5 @@ async function setStatus(s: string) {
     </div>
   </div>
 
-  <!-- lightbox -->
-  <div
-    v-if="lightbox"
-    class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6"
-    @click="lightbox = null"
-  >
-    <button
-      class="absolute top-4 right-4 text-white/80 hover:text-white"
-      @click="lightbox = null"
-    >
-      <X class="h-7 w-7" />
-    </button>
-    <img
-      :src="lightbox"
-      class="max-h-full max-w-full rounded-lg shadow-2xl"
-      alt="full photo"
-    />
-  </div>
+  <ImageLightbox :src="lightbox" @close="lightbox = null" />
 </template>
