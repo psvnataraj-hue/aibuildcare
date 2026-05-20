@@ -9,6 +9,7 @@ import ContractorPerformance from './views/ContractorPerformance.vue'
 import ContractorAnalytics from './views/ContractorAnalytics.vue'
 import AnalyticsDashboard from './views/AnalyticsDashboard.vue'
 import Settings from './views/Settings.vue'
+import Staff from './views/Staff.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -33,6 +34,7 @@ const router = createRouter({
       meta: { auth: true },
     },
     { path: '/analytics', component: AnalyticsDashboard, meta: { auth: true } },
+    { path: '/staff', component: Staff, meta: { auth: true } },
     { path: '/settings', component: Settings, meta: { auth: true } },
   ],
 })

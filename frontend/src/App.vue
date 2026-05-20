@@ -7,6 +7,7 @@ import {
   Wrench,
   BarChart3,
   Settings as SettingsIcon,
+  Users as UsersIcon,
   LogOut,
   Moon,
   Sun,
@@ -30,6 +31,7 @@ const nav = [
   { to: '/', key: 'dashboard', icon: LayoutDashboard },
   { to: '/complaints', key: 'complaints', icon: ClipboardList },
   { to: '/performance', key: 'contractors', icon: Wrench },
+  { to: '/staff', key: 'staff', icon: UsersIcon },
   { to: '/analytics', key: 'analytics', icon: BarChart3 },
   { to: '/settings', key: 'settings', icon: SettingsIcon },
 ]

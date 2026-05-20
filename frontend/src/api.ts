@@ -126,6 +126,56 @@ export interface ContractorAnalytics {
   >
   availability: { status: string; last_activity: string | null }
 }
+// E3a / E3f — staff CRUD
+export interface StaffCategory {
+  category: string
+  primary_category: boolean
+  skill_level: 'junior' | 'senior' | 'expert' | string
+}
+export interface Staff {
+  id: number
+  society_id: number
+  name: string
+  phone_primary: string
+  phone_secondary: string | null
+  whatsapp_enabled: boolean
+  sms_fallback: boolean
+  email: string | null
+  shift_pattern: string | null
+  hire_date: string | null
+  emergency_contact: string | null
+  notes: string | null
+  active: boolean
+  categories: StaffCategory[]
+  created_at: string
+}
+export interface StaffCreatePayload {
+  name: string
+  phone_primary: string
+  phone_secondary?: string | null
+  whatsapp_enabled?: boolean
+  sms_fallback?: boolean
+  email?: string | null
+  shift_pattern?: string | null
+  hire_date?: string | null
+  emergency_contact?: string | null
+  notes?: string | null
+  categories?: StaffCategory[]
+}
+export interface StaffPatchPayload {
+  name?: string
+  phone_primary?: string
+  phone_secondary?: string | null
+  whatsapp_enabled?: boolean
+  sms_fallback?: boolean
+  email?: string | null
+  shift_pattern?: string | null
+  hire_date?: string | null
+  emergency_contact?: string | null
+  notes?: string | null
+  active?: boolean
+}
+
 export interface AnalyticsSummary {
   total_contractors: number
   active_contractors: number
@@ -203,6 +253,34 @@ export const api = {
     req<{ config_key: string; config_value: string }>(
       `/api/v1/admin/config/${key}`,
       { method: 'POST', body: JSON.stringify({ value }) }
+    ),
+  // E3a / E3f — staff CRUD
+  listStaff: (includeInactive = false) =>
+    req<Staff[]>(
+      `/api/v1/staff${includeInactive ? '?include_inactive=true' : ''}`
+    ),
+  getStaff: (id: number) => req<Staff>(`/api/v1/staff/${id}`),
+  createStaff: (body: StaffCreatePayload) =>
+    req<Staff>('/api/v1/staff', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateStaff: (id: number, body: StaffPatchPayload) =>
+    req<Staff>(`/api/v1/staff/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deactivateStaff: (id: number) =>
+    req<Staff>(`/api/v1/staff/${id}`, { method: 'DELETE' }),
+  addStaffCategory: (id: number, body: StaffCategory) =>
+    req<Staff>(`/api/v1/staff/${id}/categories`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  removeStaffCategory: (id: number, category: string) =>
+    req<Staff>(
+      `/api/v1/staff/${id}/categories/${encodeURIComponent(category)}`,
+      { method: 'DELETE' }
     ),
 }
 
