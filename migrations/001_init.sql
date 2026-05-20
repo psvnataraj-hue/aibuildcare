@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     last_assigned_staff_update_at TEXT,
     last_reminder_sent_at        TEXT,
     reminder_sent_count INTEGER NOT NULL DEFAULT 0,
+    major_incident               INTEGER NOT NULL DEFAULT 0,
+    major_incident_flagged_at    TEXT,
+    major_incident_reason        TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at     TEXT
