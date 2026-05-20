@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo-root .env, resolved from this file so it loads regardless of the
@@ -25,7 +26,11 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 720
 
     seed_admin_email: str = "admin@aibuildcare.app"
-    seed_admin_password: str = "ChangeMe!2026"
+    # Default is empty so the seed is a no-op when the operator forgot
+    # to set the env var; a previous default of "ChangeMe!2026" silently
+    # shipped a publicly-known credential to prod (security fix, see
+    # `_check_prod_secrets` below).
+    seed_admin_password: str = ""
 
     anthropic_api_key: str = ""
     haiku_model: str = "claude-haiku-4-5"
@@ -82,6 +87,34 @@ class Settings(BaseSettings):
         "https://aibuildcare-web.onrender.com,"
         "https://aibuildcare.carimotech.in"
     )
+
+    @model_validator(mode="after")
+    def _check_prod_secrets(self) -> "Settings":
+        """Refuse to start in production with insecure / missing
+        secrets that have historically slipped through as silent
+        defaults.
+
+        Caught here so a Render deploy crashes loudly at startup with
+        a clear error rather than silently running with a known-public
+        credential. Dev / test environments are unaffected.
+        """
+        if self.environment == "production":
+            if not self.seed_admin_password:
+                raise ValueError(
+                    "AIBUILDCARE_SEED_ADMIN_PASSWORD must be set in "
+                    "production (cannot be empty)"
+                )
+            if self.seed_admin_password == "ChangeMe!2026":
+                raise ValueError(
+                    "AIBUILDCARE_SEED_ADMIN_PASSWORD is the leaked "
+                    "default 'ChangeMe!2026'; rotate it"
+                )
+            if self.jwt_secret == "dev-only-change-me":
+                raise ValueError(
+                    "AIBUILDCARE_JWT_SECRET must be set in production "
+                    "(not the dev default)"
+                )
+        return self
 
 
 @lru_cache
