@@ -286,4 +286,9 @@ def run_tick(now: datetime | None = None) -> dict:
         except Exception as exc:  # last-resort guard
             log.exception("%s top-level failure: %s", name, exc)
             summary[name] = {"error": str(exc)}
+    # B1 follow-up: the /tick endpoint dispatches us via BackgroundTasks
+    # and discards our return value. Log the rollup so ops can grep
+    # "tick complete" to see per-tick activity instead of staring at
+    # individual job log lines.
+    log.info("tick complete: %s", summary)
     return summary
