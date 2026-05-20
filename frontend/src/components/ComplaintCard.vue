@@ -28,6 +28,8 @@ import {
   Dumbbell,
   Baby,
   User,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-vue-next'
 import Card from './ui/Card.vue'
 import Badge from './ui/Badge.vue'
@@ -90,10 +92,50 @@ const eta = computed(() =>
       )
     : null
 )
+
+// E1c/E2a — derive the current escalation level from which timestamps
+// the cron-driven escalation job has populated. 0 = not escalated.
+const escalationLevel = computed(() => {
+  const c = props.c
+  if (c.escalated_to_chairman_at) return 4
+  if (c.escalated_to_secretary_at) return 3
+  if (c.escalated_to_sr_manager_at) return 2
+  if (c.escalated_to_manager_at) return 1
+  return 0
+})
+const escalationLabel = computed(() => {
+  const map: Record<number, string> = {
+    1: 'L1 manager',
+    2: 'L2 sr.mgr',
+    3: 'L3 secretary',
+    4: 'L4 chairman',
+  }
+  return map[escalationLevel.value] || ''
+})
+
+// E2d — major-incident is a 0/1 integer column on the complaint row.
+const isMajorIncident = computed(() => !!props.c.major_incident)
 </script>
 
 <template>
-  <Card class="hover:ring-1 hover:ring-ring transition">
+  <Card
+    class="hover:ring-1 hover:ring-ring transition"
+    :class="isMajorIncident ? 'ring-2 ring-red-500/60' : ''"
+  >
+    <!-- E2d: major-incident banner — only renders when flagged.
+         Sits at the very top so a glance at the card surfaces the
+         flag before any other content. -->
+    <div
+      v-if="isMajorIncident"
+      class="-mx-4 -mt-4 mb-3 px-4 py-2 bg-red-600 text-white rounded-t-md flex items-center gap-2 text-sm font-semibold"
+    >
+      <AlertTriangle class="h-4 w-4 shrink-0" />
+      <span>Major incident · प्रमुख घटना</span>
+      <span
+        v-if="c.major_incident_reason"
+        class="ml-1 text-xs font-normal text-red-100 truncate"
+      >· {{ c.major_incident_reason }}</span>
+    </div>
     <div class="flex items-start gap-3">
       <div
         class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0"
@@ -121,6 +163,21 @@ const eta = computed(() =>
             c.status.replace('_', ' ')
           }}</Badge>
           <Badge :variant="c.priority">{{ c.priority }}</Badge>
+          <!-- E1c/E2a: escalation badge — color escalates from amber
+               (L1) to red (L4). Only shows once escalation has fired. -->
+          <span
+            v-if="escalationLevel > 0"
+            class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset"
+            :class="{
+              'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:ring-amber-700/40': escalationLevel === 1,
+              'bg-orange-200 text-orange-900 ring-orange-400 dark:bg-orange-900/50 dark:text-orange-100 dark:ring-orange-600': escalationLevel === 2,
+              'bg-red-200 text-red-900 ring-red-400 dark:bg-red-900/40 dark:text-red-200 dark:ring-red-700/40': escalationLevel === 3,
+              'bg-red-600 text-white ring-red-700/40': escalationLevel === 4,
+            }"
+          >
+            <TrendingUp class="h-3.5 w-3.5" />
+            {{ escalationLabel }}
+          </span>
         </div>
         <p class="text-sm mt-2 text-muted-foreground line-clamp-2">
           {{ staffSummary }}

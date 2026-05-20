@@ -8,6 +8,8 @@ import {
   Circle,
   Languages,
   Star,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-vue-next'
 import {
   api,
@@ -116,6 +118,37 @@ const estCompletion = computed(() =>
     : null
 )
 
+// E1c/E2a — escalation history. Builds an array of {level, role, at}
+// for each level that has fired (null entries dropped). Used to
+// render the timestamp-pill strip on the detail view.
+const ESCALATION_LEVELS = [
+  { level: 1, role: 'manager', key: 'escalated_to_manager_at' },
+  { level: 2, role: 'sr_manager', key: 'escalated_to_sr_manager_at' },
+  { level: 3, role: 'secretary', key: 'escalated_to_secretary_at' },
+  { level: 4, role: 'chairman', key: 'escalated_to_chairman_at' },
+] as const
+const escalationHistory = computed(() => {
+  const cv = c.value
+  if (!cv) return []
+  return ESCALATION_LEVELS
+    .map((lvl) => ({
+      level: lvl.level,
+      role: lvl.role,
+      at: (cv as any)[lvl.key] as string | null,
+    }))
+    .filter((e) => e.at)
+})
+const currentEscalationLevel = computed(() => {
+  const h = escalationHistory.value
+  return h.length ? h[h.length - 1].level : 0
+})
+const isMajorIncident = computed(() => !!c.value?.major_incident)
+const majorIncidentFlaggedAt = computed(() =>
+  c.value?.major_incident_flagged_at
+    ? new Date(c.value.major_incident_flagged_at).toLocaleString()
+    : null
+)
+
 onMounted(async () => {
   await load()
   // category-specific list, best-rated first (for manual override)
@@ -167,6 +200,25 @@ async function setStatus(s: string) {
     >
       <ArrowLeft class="h-4 w-4" /> Back to complaints
     </button>
+
+    <!-- E2d: prominent major-incident banner (full width, with reason +
+         flagged_at). Sits above all other detail content so it's the
+         first thing the eye lands on. -->
+    <div
+      v-if="isMajorIncident"
+      class="rounded-lg bg-red-600 text-white px-4 py-3 flex items-start gap-3"
+    >
+      <AlertTriangle class="h-5 w-5 shrink-0 mt-0.5" />
+      <div class="min-w-0 flex-1">
+        <p class="font-bold">Major incident · प्रमुख घटना</p>
+        <p v-if="c.major_incident_reason" class="text-sm mt-0.5">
+          {{ c.major_incident_reason }}
+        </p>
+        <p v-if="majorIncidentFlaggedAt" class="text-xs text-red-100 mt-1">
+          Flagged {{ majorIncidentFlaggedAt }}
+        </p>
+      </div>
+    </div>
 
     <div>
       <div class="flex items-center gap-3 flex-wrap">
@@ -256,6 +308,50 @@ async function setStatus(s: string) {
         <p class="text-2xl font-bold mt-1">{{ daysPending }}</p>
       </Card>
     </div>
+
+    <!-- E1c/E2a: escalation history. Empty state = "no escalations yet"
+         so staff can confirm the chain is dormant rather than missing.
+         Each pill is one fired escalation event with its timestamp. -->
+    <Card>
+      <div class="flex items-center gap-2 mb-3">
+        <TrendingUp class="h-4 w-4 text-primary" />
+        <h2 class="font-semibold">
+          Escalation history · वृद्धि इतिहास
+        </h2>
+        <span
+          v-if="currentEscalationLevel > 0"
+          class="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset"
+          :class="{
+            'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:ring-amber-700/40': currentEscalationLevel === 1,
+            'bg-orange-200 text-orange-900 ring-orange-400 dark:bg-orange-900/50 dark:text-orange-100 dark:ring-orange-600': currentEscalationLevel === 2,
+            'bg-red-200 text-red-900 ring-red-400 dark:bg-red-900/40 dark:text-red-200 dark:ring-red-700/40': currentEscalationLevel === 3,
+            'bg-red-600 text-white ring-red-700/40': currentEscalationLevel === 4,
+          }"
+        >
+          Current: L{{ currentEscalationLevel }}
+        </span>
+      </div>
+      <div
+        v-if="escalationHistory.length === 0"
+        class="text-sm text-muted-foreground italic"
+      >
+        No escalations yet — within SLA.
+      </div>
+      <div v-else class="flex flex-wrap gap-2">
+        <div
+          v-for="e in escalationHistory"
+          :key="e.level"
+          class="rounded-md border bg-secondary/40 px-3 py-2 text-sm"
+        >
+          <p class="font-semibold capitalize">
+            L{{ e.level }} · {{ e.role.replace('_', ' ') }}
+          </p>
+          <p class="text-xs text-muted-foreground mt-0.5">
+            {{ e.at ? new Date(e.at).toLocaleString() : '' }}
+          </p>
+        </div>
+      </div>
+    </Card>
 
     <!-- status timeline -->
     <Card>

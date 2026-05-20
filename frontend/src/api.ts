@@ -51,6 +51,15 @@ export interface Complaint {
   detected_language: string | null
   official_summaries: Record<string, string> | null
   estimated_completion_date: string | null
+  // E1c/E2a escalation timestamps (null until each level fires)
+  escalated_to_manager_at: string | null
+  escalated_to_sr_manager_at: string | null
+  escalated_to_secretary_at: string | null
+  escalated_to_chairman_at: string | null
+  // E2d major-incident flagging
+  major_incident: number | null
+  major_incident_flagged_at: string | null
+  major_incident_reason: string | null
   created_at: string
   updated_at: string
   messages?: Message[]
