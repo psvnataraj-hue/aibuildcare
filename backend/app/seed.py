@@ -1,7 +1,11 @@
 """Idempotent seed: admin user, a demo society/units, demo contractors."""
+import logging
+
 from .config import get_settings
 from .db import get_conn, init_db
 from .security import hash_password
+
+log = logging.getLogger("aibuildcare.seed")
 
 
 def seed() -> None:
@@ -11,16 +15,27 @@ def seed() -> None:
         if not conn.execute(
             "SELECT 1 FROM users WHERE email = ?", (s.seed_admin_email,)
         ).fetchone():
-            conn.execute(
-                "INSERT INTO users (email, password_hash, full_name, role) "
-                "VALUES (?,?,?,?)",
-                (
-                    s.seed_admin_email,
-                    hash_password(s.seed_admin_password),
-                    "Administrator",
-                    "admin",
-                ),
-            )
+            # Defense-in-depth — config.py's _check_prod_secrets already
+            # refuses to start in production with an empty password, but
+            # guard here too so dev / test runs with no env var don't
+            # accidentally create an admin whose password is hash("").
+            if not s.seed_admin_password:
+                log.warning(
+                    "seed: AIBUILDCARE_SEED_ADMIN_PASSWORD is empty; "
+                    "skipping admin user creation. Set the env var and "
+                    "restart to seed the admin."
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO users (email, password_hash, full_name, "
+                    "role) VALUES (?,?,?,?)",
+                    (
+                        s.seed_admin_email,
+                        hash_password(s.seed_admin_password),
+                        "Administrator",
+                        "admin",
+                    ),
+                )
         if not conn.execute("SELECT 1 FROM societies").fetchone():
             conn.execute(
                 "INSERT INTO societies (name, address) VALUES (?,?)",
