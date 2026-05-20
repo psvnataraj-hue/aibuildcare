@@ -34,7 +34,9 @@ class ComplaintOut(BaseModel):
 
 
 class AssignRequest(BaseModel):
-    contractor_id: int
+    # Exactly one of contractor_id / staff_id must be set.
+    contractor_id: int | None = None
+    staff_id: int | None = None
 
 
 class StatusUpdateRequest(BaseModel):

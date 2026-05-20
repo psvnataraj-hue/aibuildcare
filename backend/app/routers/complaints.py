@@ -132,18 +132,44 @@ def get_complaint(
 async def assign(
     cid: int, body: AssignRequest, sid: int = Depends(current_society)
 ) -> dict:
-    # capture prior contractor for reassignment notice
+    """Assign EITHER a staff_member or a contractor (exactly one).
+    Reassigning to a different contractor also notifies the previous
+    contractor that they're no longer responsible."""
+    if bool(body.contractor_id) == bool(body.staff_id):
+        raise HTTPException(
+            400,
+            "exactly one of contractor_id or staff_id must be provided",
+        )
     try:
         prev = svc.get_complaint(cid, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
     prev_cid = prev.get("contractor_id")
+
+    if body.staff_id:
+        try:
+            c = svc.assign_staff(cid, body.staff_id, society_id=sid)
+        except svc.ComplaintError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        # notify the previous contractor (if any) that they were
+        # unassigned by this staff handover
+        if prev_cid:
+            old = svc.get_contractor(prev_cid)
+            if old and old.get("phone"):
+                send_whatsapp(
+                    old["phone"],
+                    f"Update: complaint {c['ticket_number']} "
+                    f"({c.get('category')}) has been handed over to "
+                    f"in-house staff. No further action needed.",
+                )
+        await hub.broadcast("complaint.updated", c)
+        return c
+
+    # contractor path (existing behaviour)
     try:
         c = svc.assign_contractor(cid, body.contractor_id, society_id=sid)
     except svc.ComplaintError as e:
         raise HTTPException(status_code=404, detail=str(e))
-
-    # notify the newly assigned contractor (graceful no-op w/o Twilio)
     con = svc.get_contractor(body.contractor_id)
     if con and con.get("phone"):
         send_whatsapp(
@@ -152,7 +178,6 @@ async def assign(
             f"Unit {c.get('unit_number') or '?'}, {c.get('category')} "
             f"({c['ticket_number']}). Status: Assigned.",
         )
-    # notify the previous contractor they were unassigned
     if prev_cid and prev_cid != body.contractor_id:
         old = svc.get_contractor(prev_cid)
         if old and old.get("phone"):

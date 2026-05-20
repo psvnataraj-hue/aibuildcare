@@ -309,6 +309,39 @@ def assign_contractor(
         return _row_to_dict(row)
 
 
+def assign_staff(
+    cid: int, staff_id: int, society_id: int | None = None
+) -> dict:
+    """E3b: manual staff assignment. Mirrors assign_contractor.
+    Society-enforced both on the complaint AND the staff member."""
+    with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        s = conn.execute(
+            "SELECT id FROM staff_members "
+            "WHERE id = ? AND society_id = ? AND active = 1",
+            (staff_id, sid),
+        ).fetchone()
+        if not s:
+            raise ComplaintError("staff not found")
+        cur = conn.execute(
+            "UPDATE complaints SET assigned_staff_id = ?, "
+            "contractor_id = NULL, status = 'assigned', "
+            "updated_at = ? WHERE id = ? AND society_id = ?",
+            (staff_id, _now(), cid, sid),
+        )
+        if cur.rowcount == 0:
+            raise ComplaintError("complaint not found")
+        conn.execute(
+            "INSERT INTO complaint_status_history (complaint_id, "
+            "to_status, changed_by) VALUES (?,?,?)",
+            (cid, "assigned", "staff-assign"),
+        )
+        row = conn.execute(
+            "SELECT * FROM complaints WHERE id = ?", (cid,)
+        ).fetchone()
+        return _row_to_dict(row)
+
+
 def update_status(
     cid: int, new_status: str, society_id: int | None = None
 ) -> dict:
