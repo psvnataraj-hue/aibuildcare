@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     escalated_to_chairman_at     TEXT,
     last_complainant_update_at   TEXT,
     last_assigned_staff_update_at TEXT,
+    last_reminder_sent_at        TEXT,
     reminder_sent_count INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
     updated_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
@@ -99,6 +100,8 @@ ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_assigned_staff_update_at TE
 ALTER TABLE complaints ADD COLUMN IF NOT EXISTS reminder_sent_count INTEGER NOT NULL DEFAULT 0;
 -- E1b': vendor directory opt-out
 ALTER TABLE contractors ADD COLUMN IF NOT EXISTS available_for_personal_jobs INTEGER NOT NULL DEFAULT 1;
+-- E2b: staff reminder throttling
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_reminder_sent_at TEXT;
 
 CREATE TABLE IF NOT EXISTS complaint_messages (
     id           SERIAL PRIMARY KEY,
