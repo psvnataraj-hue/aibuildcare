@@ -174,28 +174,36 @@ def create_complaint(
             "VALUES (?,?,?)",
             (cid, "system", ack),
         )
-        # --- smart auto-assignment (Phase 4.5) ---------------------------
+        # --- E1b: society + category-aware routing (staff → contractor)
         from ..config import get_settings
-        from .contractor_router import best_contractor
+        from .routing_service import find_assignee
 
-        con = (
-            best_contractor(parsed.category)
+        assignee = (
+            find_assignee(parsed.category, sid)
             if get_settings().auto_assign_enabled
             else None
         )
-        if con:
+        if assignee:
             eta = (
                 datetime.now(timezone.utc)
                 + timedelta(
                     hours=category_avg_resolution_hours(parsed.category)
                 )
             ).isoformat()
-            conn.execute(
-                "UPDATE complaints SET contractor_id = ?, "
-                "status = 'assigned', updated_at = ?, "
-                "estimated_completion_date = ? WHERE id = ?",
-                (con["id"], _now(), eta, cid),
-            )
+            if assignee["type"] == "staff":
+                conn.execute(
+                    "UPDATE complaints SET assigned_staff_id = ?, "
+                    "status = 'assigned', updated_at = ?, "
+                    "estimated_completion_date = ? WHERE id = ?",
+                    (assignee["id"], _now(), eta, cid),
+                )
+            else:  # contractor
+                conn.execute(
+                    "UPDATE complaints SET contractor_id = ?, "
+                    "status = 'assigned', updated_at = ?, "
+                    "estimated_completion_date = ? WHERE id = ?",
+                    (assignee["id"], _now(), eta, cid),
+                )
             conn.execute(
                 "INSERT INTO complaint_status_history (complaint_id, "
                 "from_status, to_status, changed_by) VALUES (?,?,?,?)",
@@ -205,10 +213,9 @@ def create_complaint(
                 "INSERT INTO complaint_messages (complaint_id, sender, "
                 "body) VALUES (?,?,?)",
                 (
-                    cid,
-                    "system",
-                    f"Auto-assigned to {con['name']} "
-                    f"(rating {con['average_rating']}).",
+                    cid, "system",
+                    f"Auto-assigned to {assignee['name']} "
+                    f"({assignee['type']}).",
                 ),
             )
         row = conn.execute(
@@ -216,13 +223,14 @@ def create_complaint(
         ).fetchone()
         result = _row_to_dict(row)
 
-    # notify the auto-assigned contractor (graceful no-op w/o Twilio)
-    if con and con.get("phone"):
+    # notify the assignee on assignment (graceful no-op w/o Twilio)
+    if (assignee and assignee.get("phone")
+            and assignee.get("whatsapp_enabled", True)):
         from .notify import send_whatsapp
 
         send_whatsapp(
-            con["phone"],
-            f"{ACK_TICK} ASSIGNED: {con['name']}. Unit "
+            assignee["phone"],
+            f"{ACK_TICK} ASSIGNED: {assignee['name']}. Unit "
             f"{result.get('unit_number') or '?'}, "
             f"{result.get('category')} ({result['ticket_number']}). "
             f"Status: Assigned.",

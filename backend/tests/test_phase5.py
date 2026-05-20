@@ -36,6 +36,12 @@ def p5(tmp_path, monkeypatch):
                 "UPDATE contractors SET average_rating = 1.0 "
                 "WHERE name = 'CoolAir Services'"
             )
+            # E1b: stamp society_id on any contractor row inserted
+            # before seed's backfill could see it (default society).
+            cn.execute(
+                "UPDATE contractors SET society_id = 1 "
+                "WHERE society_id IS NULL"
+            )
         tok = c.post(
             "/api/v1/auth/login",
             json={"email": "admin@aibuildcare.app", "password": "Secret!123"},
