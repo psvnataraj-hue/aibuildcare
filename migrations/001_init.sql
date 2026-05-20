@@ -66,6 +66,14 @@ CREATE TABLE IF NOT EXISTS complaints (
     detected_language TEXT,
     official_summaries TEXT,
     estimated_completion_date TEXT,
+    assigned_staff_id INTEGER,
+    escalated_to_manager_at      TEXT,
+    escalated_to_sr_manager_at   TEXT,
+    escalated_to_secretary_at    TEXT,
+    escalated_to_chairman_at     TEXT,
+    last_complainant_update_at   TEXT,
+    last_assigned_staff_update_at TEXT,
+    reminder_sent_count INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at     TEXT
@@ -110,6 +118,69 @@ CREATE TABLE IF NOT EXISTS system_config (
     config_key   TEXT PRIMARY KEY,
     config_value TEXT NOT NULL,
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS staff_members (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    society_id    INTEGER NOT NULL REFERENCES societies(id),
+    name          TEXT NOT NULL,
+    phone_primary    TEXT NOT NULL,
+    phone_secondary  TEXT,
+    whatsapp_enabled INTEGER NOT NULL DEFAULT 1,
+    sms_fallback     INTEGER NOT NULL DEFAULT 1,
+    email           TEXT,
+    shift_pattern   TEXT,
+    active          INTEGER NOT NULL DEFAULT 1,
+    hire_date       TEXT,
+    emergency_contact TEXT,
+    notes           TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS staff_categories (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_id         INTEGER NOT NULL REFERENCES staff_members(id),
+    category         TEXT NOT NULL,
+    primary_category INTEGER NOT NULL DEFAULT 0,
+    skill_level      TEXT NOT NULL DEFAULT 'junior',
+    UNIQUE(staff_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS contractor_categories (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    contractor_id    INTEGER NOT NULL REFERENCES contractors(id),
+    category         TEXT NOT NULL,
+    primary_category INTEGER NOT NULL DEFAULT 0,
+    average_rating   REAL NOT NULL DEFAULT 5.0,
+    completed_jobs   INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(contractor_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS escalation_hierarchy (
+    id                            INTEGER PRIMARY KEY AUTOINCREMENT,
+    society_id                    INTEGER NOT NULL REFERENCES societies(id),
+    role_name                     TEXT NOT NULL,
+    person_name                   TEXT NOT NULL,
+    phone                         TEXT,
+    whatsapp_enabled              INTEGER NOT NULL DEFAULT 1,
+    email                         TEXT,
+    escalation_level              INTEGER NOT NULL,
+    response_time_target_minutes  INTEGER NOT NULL DEFAULT 60,
+    active                        INTEGER NOT NULL DEFAULT 1,
+    created_at                    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS category_sla_config (
+    id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+    society_id                   INTEGER NOT NULL REFERENCES societies(id),
+    category                     TEXT NOT NULL,
+    target_response_time_minutes INTEGER NOT NULL,
+    target_resolution_time_hours INTEGER NOT NULL,
+    priority_high_multiplier     REAL NOT NULL DEFAULT 0.5,
+    escalation_levels            TEXT NOT NULL DEFAULT '{}',
+    updated_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(society_id, category)
 );
 
 CREATE TABLE IF NOT EXISTS role_permission_overrides (

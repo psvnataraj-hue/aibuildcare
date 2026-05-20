@@ -68,6 +68,14 @@ CREATE TABLE IF NOT EXISTS complaints (
     detected_language TEXT,
     official_summaries TEXT,
     estimated_completion_date TEXT,
+    assigned_staff_id INTEGER,
+    escalated_to_manager_at      TEXT,
+    escalated_to_sr_manager_at   TEXT,
+    escalated_to_secretary_at    TEXT,
+    escalated_to_chairman_at     TEXT,
+    last_complainant_update_at   TEXT,
+    last_assigned_staff_update_at TEXT,
+    reminder_sent_count INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
     updated_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
     resolved_at     TEXT
@@ -79,6 +87,15 @@ ALTER TABLE complaints ADD COLUMN IF NOT EXISTS official_summaries TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
 ALTER TABLE contractors ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id);
+-- E1a: enterprise escalation/assignment columns on complaints
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS assigned_staff_id INTEGER;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS escalated_to_manager_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS escalated_to_sr_manager_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS escalated_to_secretary_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS escalated_to_chairman_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_complainant_update_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_assigned_staff_update_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS reminder_sent_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS complaint_messages (
     id           SERIAL PRIMARY KEY,
@@ -122,6 +139,69 @@ INSERT INTO system_config (config_key, config_value) VALUES
     ('max_pending_jobs_per_contractor', '10'),
     ('load_balancing_enabled', 'true')
 ON CONFLICT (config_key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS staff_members (
+    id            SERIAL PRIMARY KEY,
+    society_id    INTEGER NOT NULL REFERENCES societies(id),
+    name          TEXT NOT NULL,
+    phone_primary    TEXT NOT NULL,
+    phone_secondary  TEXT,
+    whatsapp_enabled INTEGER NOT NULL DEFAULT 1,
+    sms_fallback     INTEGER NOT NULL DEFAULT 1,
+    email           TEXT,
+    shift_pattern   TEXT,
+    active          INTEGER NOT NULL DEFAULT 1,
+    hire_date       TEXT,
+    emergency_contact TEXT,
+    notes           TEXT,
+    created_at      TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
+);
+
+CREATE TABLE IF NOT EXISTS staff_categories (
+    id               SERIAL PRIMARY KEY,
+    staff_id         INTEGER NOT NULL REFERENCES staff_members(id),
+    category         TEXT NOT NULL,
+    primary_category INTEGER NOT NULL DEFAULT 0,
+    skill_level      TEXT NOT NULL DEFAULT 'junior',
+    UNIQUE(staff_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS contractor_categories (
+    id               SERIAL PRIMARY KEY,
+    contractor_id    INTEGER NOT NULL REFERENCES contractors(id),
+    category         TEXT NOT NULL,
+    primary_category INTEGER NOT NULL DEFAULT 0,
+    average_rating   NUMERIC(3,2) NOT NULL DEFAULT 5.0,
+    completed_jobs   INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
+    UNIQUE(contractor_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS escalation_hierarchy (
+    id                            SERIAL PRIMARY KEY,
+    society_id                    INTEGER NOT NULL REFERENCES societies(id),
+    role_name                     TEXT NOT NULL,
+    person_name                   TEXT NOT NULL,
+    phone                         TEXT,
+    whatsapp_enabled              INTEGER NOT NULL DEFAULT 1,
+    email                         TEXT,
+    escalation_level              INTEGER NOT NULL,
+    response_time_target_minutes  INTEGER NOT NULL DEFAULT 60,
+    active                        INTEGER NOT NULL DEFAULT 1,
+    created_at                    TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
+);
+
+CREATE TABLE IF NOT EXISTS category_sla_config (
+    id                           SERIAL PRIMARY KEY,
+    society_id                   INTEGER NOT NULL REFERENCES societies(id),
+    category                     TEXT NOT NULL,
+    target_response_time_minutes INTEGER NOT NULL,
+    target_resolution_time_hours INTEGER NOT NULL,
+    priority_high_multiplier     NUMERIC(4,2) NOT NULL DEFAULT 0.5,
+    escalation_levels            TEXT NOT NULL DEFAULT '{}',
+    updated_at                   TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
+    UNIQUE(society_id, category)
+);
 
 CREATE TABLE IF NOT EXISTS role_permission_overrides (
     society_id  INTEGER NOT NULL REFERENCES societies(id),

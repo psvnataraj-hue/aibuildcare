@@ -57,6 +57,36 @@ def seed() -> None:
                     "WHERE society_id IS NULL",
                     (did,),
                 )
+            # E1a: seed sensible per-category SLA defaults for the
+            # default society (idempotent — skip if a row exists).
+            SLA_DEFAULTS = {
+                "AC/Cooling":   (30, 4),
+                "Plumbing":     (60, 8),
+                "Electrical":   (30, 6),
+                "Elevator":     (15, 2),     # safety
+                "Housekeeping": (60, 24),
+                "Security":     (15, 2),     # safety
+                "Other":        (120, 24),
+            }
+            ESC = (
+                '{"1":{"after_hours":2,"notify":"manager"},'
+                '"2":{"after_hours":4,"notify":"sr_manager"},'
+                '"3":{"after_hours":8,"notify":"secretary"}}'
+            )
+            for cat, (resp_m, resolve_h) in SLA_DEFAULTS.items():
+                if not conn.execute(
+                    "SELECT 1 FROM category_sla_config "
+                    "WHERE society_id = ? AND category = ?",
+                    (did, cat),
+                ).fetchone():
+                    conn.execute(
+                        "INSERT INTO category_sla_config "
+                        "(society_id, category, target_response_time_minutes, "
+                        "target_resolution_time_hours, "
+                        "priority_high_multiplier, escalation_levels) "
+                        "VALUES (?,?,?,?,?,?)",
+                        (did, cat, resp_m, resolve_h, 0.5, ESC),
+                    )
 
 
 if __name__ == "__main__":
