@@ -185,6 +185,14 @@ CREATE TABLE IF NOT EXISTS category_sla_config (
     UNIQUE(society_id, category)
 );
 
+CREATE TABLE IF NOT EXISTS weekly_summaries_sent (
+    society_id      INTEGER NOT NULL REFERENCES societies(id),
+    week_start_date TEXT NOT NULL,
+    sent_at         TEXT NOT NULL DEFAULT (datetime('now')),
+    recipient_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (society_id, week_start_date)
+);
+
 CREATE TABLE IF NOT EXISTS role_permission_overrides (
     society_id  INTEGER NOT NULL REFERENCES societies(id),
     role        TEXT NOT NULL,

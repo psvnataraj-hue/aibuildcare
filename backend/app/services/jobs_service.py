@@ -271,10 +271,13 @@ def run_tick(now: datetime | None = None) -> dict:
     """Run every due job. Each in its own try/except so a single job
     failure doesn't abort the tick."""
     summary: dict = {}
+    from . import weekly_summary as _wk
+
     for name, fn in (
         ("auto_escalations", run_due_escalations),
         ("staff_reminders", run_due_staff_reminders),
         ("complainant_updates", run_due_complainant_updates),
+        ("weekly_summaries", _wk.run_due_weekly_summaries),
     ):
         try:
             summary[name] = fn(now)

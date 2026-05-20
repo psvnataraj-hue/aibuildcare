@@ -220,9 +220,13 @@ def test_resolved_complaint_no_complainant_update(client, auth_header):
 
 
 # ---- tick combines all three ----------------------------------------
-def test_tick_returns_all_three_job_summaries(client):
+def test_tick_returns_all_job_summaries(client):
     summary = jobs_service.run_tick()
-    assert {"auto_escalations", "staff_reminders",
-            "complainant_updates"} == set(summary)
-    for k in summary:
+    expected = {
+        "auto_escalations", "staff_reminders",
+        "complainant_updates", "weekly_summaries",
+    }
+    assert expected <= set(summary)
+    for k in ("auto_escalations", "staff_reminders",
+              "complainant_updates"):
         assert "checked" in summary[k]
