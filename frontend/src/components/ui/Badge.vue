@@ -25,6 +25,8 @@ const badge = cva(
           'bg-emerald-600 text-white ring-emerald-700/40',
         closed:
           'bg-slate-400 text-white ring-slate-500/40 dark:bg-slate-600',
+        staff:
+          'bg-teal-100 text-teal-800 ring-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:ring-teal-700/40',
       },
     },
     defaultVariants: { variant: 'default' },

@@ -219,15 +219,28 @@ async function setStatus(s: string) {
       </Card>
       <Card>
         <p class="text-xs text-muted-foreground">
-          Assigned to · ठेकेदार
+          Assigned to · सौंपा गया
         </p>
-        <p class="font-semibold mt-1 truncate">
-          {{ assignedContractor ? assignedContractor.name : '— none —' }}
+        <p
+          v-if="c.assigned_staff_name"
+          class="font-semibold mt-1 truncate flex items-center gap-1.5"
+        >
+          <span>{{ c.assigned_staff_name }}</span>
+          <Badge variant="staff">staff</Badge>
+        </p>
+        <p
+          v-else-if="assignedContractor"
+          class="font-semibold mt-1 truncate"
+        >
+          {{ assignedContractor.name }}
           <span
-            v-if="assignedContractor?.average_rating"
+            v-if="assignedContractor.average_rating"
             class="text-amber-500"
             >⭐ {{ assignedContractor.average_rating }}</span
           >
+        </p>
+        <p v-else class="font-semibold mt-1 text-muted-foreground">
+          — none —
         </p>
       </Card>
       <Card>

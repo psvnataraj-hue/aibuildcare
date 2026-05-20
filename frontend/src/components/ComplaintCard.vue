@@ -27,6 +27,7 @@ import {
   Volume2,
   Dumbbell,
   Baby,
+  User,
 } from 'lucide-vue-next'
 import Card from './ui/Card.vue'
 import Badge from './ui/Badge.vue'
@@ -123,6 +124,15 @@ const eta = computed(() =>
         </div>
         <p class="text-sm mt-2 text-muted-foreground line-clamp-2">
           {{ staffSummary }}
+        </p>
+        <p
+          v-if="c.assigned_staff_name"
+          class="text-xs mt-2 flex items-center gap-1"
+        >
+          <User class="h-3.5 w-3.5 text-primary" />
+          <span class="text-muted-foreground">Assigned · सौंपा गया:</span>
+          <strong>{{ c.assigned_staff_name }}</strong>
+          <Badge variant="staff" class="ml-1">staff</Badge>
         </p>
         <p v-if="eta" class="text-xs mt-2">
           <span class="text-muted-foreground"
