@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     # stay meaningful; the dedicated auto-assign tests opt back in.
     auto_assign_enabled: bool = True
 
+    # E2: shared secret for /internal/jobs/tick (external cron caller
+    # like cron-job.org sends X-Internal-Secret). Empty -> endpoint
+    # disabled (returns 503), preventing accidental public access.
+    internal_jobs_secret: str = ""
+
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "https://aibuildcare-web.onrender.com,"
