@@ -6,7 +6,13 @@ from fastapi import APIRouter, Request
 from ..config import get_settings
 from ..integrations import r2_client
 from ..services import complaint_service as svc
-from ..services import audio_transcriber, media_intake, tts
+from ..services import (
+    audio_transcriber,
+    haiku_parser,
+    media_intake,
+    tts,
+    vendor_directory,
+)
 from ..services.ws_hub import hub
 from ..services.notify import (
     send_whatsapp,
@@ -19,6 +25,58 @@ log = logging.getLogger("aibuildcare.webhooks")
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _TAG_RE = re.compile(r"<[^>]+>")
+
+# E1b'': resident self-service vendor directory via WhatsApp.
+# Trigger words must be EXPLICIT search intent; bare problem text
+# (e.g. "AC kharab") stays a complaint.
+_DIRECTORY_INTENT_RE = re.compile(
+    r"\b(find|looking for|connect me to|vendor for|directory|"
+    r"hire (?:a )?|recommend (?:a |me a )?)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_directory_request(text: str) -> bool:
+    return bool(_DIRECTORY_INTENT_RE.search(text or ""))
+
+
+def _inbound_society() -> int:
+    """Which society an inbound (no-auth) WhatsApp/SMS/Form message
+    belongs to. Until per-society inbound identifiers (Enterprise R1)
+    land, everything defaults to the first society."""
+    from ..db import get_conn
+
+    try:
+        with get_conn() as conn:
+            r = conn.execute(
+                "SELECT id FROM societies ORDER BY id LIMIT 1"
+            ).fetchone()
+            return dict(r)["id"] if r else 1
+    except Exception:
+        return 1
+
+
+def _format_directory_reply(category: str, vendors: list[dict]) -> str:
+    if not vendors:
+        return (
+            f"Sorry, no vetted {category} vendors are currently "
+            f"available in your society. For a society-level issue "
+            f"please describe the problem directly."
+        )
+    lines = [
+        f"Here are vetted {category} vendors in your society "
+        f"(tap a link to chat directly):"
+    ]
+    for i, v in enumerate(vendors[:5], 1):
+        rating = (f"⭐ {v['average_rating']:.1f}"
+                  if v.get("average_rating") is not None else "")
+        link = v.get("wa_link") or v.get("phone") or "(no contact)"
+        lines.append(f"{i}. {v['name']} {rating} — {link}")
+    lines.append(
+        "\n(For a society/common-area issue, describe the problem "
+        "and we'll log it as a complaint.)"
+    )
+    return "\n".join(lines)
 
 
 def _email_addr(raw: str) -> str:
@@ -93,6 +151,20 @@ async def twilio_whatsapp(request: Request) -> dict:
     body = str(form.get("Body", ""))
     images, audio = media_intake.extract_twilio_media(form)
     text = _with_audio(body, audio) or "[media received]"
+
+    # E1b'': resident self-service vendor directory short-circuits
+    # complaint creation when the user explicitly asked us to FIND a
+    # vendor (e.g. "looking for a carpenter for my flat").
+    if phone and _is_directory_request(text):
+        cat = haiku_parser._classify(text)
+        if cat != "Other":
+            vendors = vendor_directory.list_vendors(
+                _inbound_society(), cat
+            )
+            send_whatsapp(phone, _format_directory_reply(cat, vendors))
+            return {"ok": True, "directory": True, "category": cat,
+                    "vendor_count": len(vendors)}
+
     c = svc.create_complaint(
         text, channel="whatsapp", reporter_phone=phone, image_urls=images
     )
