@@ -219,7 +219,10 @@ def create_complaint(
                 ),
             )
         row = conn.execute(
-            "SELECT * FROM complaints WHERE id = ?", (cid,)
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ?", (cid,)
         ).fetchone()
         result = _row_to_dict(row)
 
@@ -249,21 +252,24 @@ def list_complaints(
     )
     with get_conn() as conn:
         sid = _sid(conn, society_id)
-        clauses = ["society_id = ?"]  # tenant boundary, always applied
+        clauses = ["c.society_id = ?"]  # tenant boundary, always applied
         params: list = [sid]
         if status:
-            clauses.append("status = ?")
+            clauses.append("c.status = ?")
             params.append(status)
         if q:
             clauses.append(
-                "(raw_text LIKE ? OR ticket_number LIKE ? "
-                "OR unit_number LIKE ?)"
+                "(c.raw_text LIKE ? OR c.ticket_number LIKE ? "
+                "OR c.unit_number LIKE ?)"
             )
             params += [f"%{q}%"] * 3
         sql = (
-            "SELECT * FROM complaints WHERE "
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE "
             + " AND ".join(clauses)
-            + f" ORDER BY {sort_col} DESC"
+            + f" ORDER BY c.{sort_col} DESC"
         )
         return [_row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
 
@@ -272,7 +278,10 @@ def get_complaint(cid: int, society_id: int | None = None) -> dict:
     with get_conn() as conn:
         sid = _sid(conn, society_id)
         row = conn.execute(
-            "SELECT * FROM complaints WHERE id = ? AND society_id = ?",
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ? AND c.society_id = ?",
             (cid, sid),
         ).fetchone()
         if not row:
@@ -304,7 +313,10 @@ def assign_contractor(
             (cid, "assigned", "staff"),
         )
         row = conn.execute(
-            "SELECT * FROM complaints WHERE id = ?", (cid,)
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ?", (cid,)
         ).fetchone()
         return _row_to_dict(row)
 
@@ -337,7 +349,10 @@ def assign_staff(
             (cid, "assigned", "staff-assign"),
         )
         row = conn.execute(
-            "SELECT * FROM complaints WHERE id = ?", (cid,)
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ?", (cid,)
         ).fetchone()
         return _row_to_dict(row)
 
@@ -372,7 +387,10 @@ def update_status(
             (cid, old, new_status, "staff"),
         )
         out = conn.execute(
-            "SELECT * FROM complaints WHERE id = ?", (cid,)
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ?", (cid,)
         ).fetchone()
         return _row_to_dict(out)
 
