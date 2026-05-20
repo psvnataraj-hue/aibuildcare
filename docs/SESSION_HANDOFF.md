@@ -1,7 +1,53 @@
 # AIBuildCare — Session Handoff (resume after break)
 
-_Last updated: 2026-05-19 (session 3 close). Repo:
-`psvnataraj-hue/aibuildcare`, branch `main`._
+_Last updated: 2026-05-20 (session 4 close — huge day, see below).
+Repo: `psvnataraj-hue/aibuildcare`, branch `main`, head `fd0ac95`._
+
+## SESSION 4 (2026-05-20) — what shipped (13 commits, 196 → 306 tests)
+
+The full Enterprise Community Management backend is now built.
+
+| Commit | Phase | What | Tests |
+|---|---|---|---|
+| `3cae6b5` | Categories | 7 → 24 categories (Carpentry + 16 others) | 196 |
+| `7a0cde8` | E1a | 5 enterprise tables + complaint escalation cols + SLA seed | 176 (-pre-test fix) |
+| `fe34e04` | E1b | Society/category-aware routing (staff > contractor > unassigned) | 205 |
+| `80fbe7b` | E1b' | Vendor directory + opt-out flag + wa.me click-to-chat | 217 |
+| `34b7d69` | E1b'' | WhatsApp "find a carpenter" intent | 225 |
+| `6bfe76b` | E1c | Manual escalation L1→L4 + hierarchy CRUD | 238 |
+| `a594e9e` | E2a | `/internal/jobs/tick` + auto-escalation (DEPLOYED) | 250 |
+| `0d1cbe9` | E2b | Staff reminders + complainant updates | 263 |
+| `a46e972` | E2c | Sunday HTML committee summary (SendGrid, idempotent) | 275 |
+| `16b96f9` | E2d | Major-incident auto-flagging (DEPLOYED, completes E2) | 287 |
+| `ad6ace0` | E3a | Staff CRUD endpoints + category subresource | 298 |
+| `fd0ac95` | E3b | /assign accepts staff_id OR contractor_id + Parking design | **306** |
+
+**All commits pushed to `origin/main`.** Render is on `16b96f9` (E2d
+live). 2 commits ahead of live (`ad6ace0`, `fd0ac95`) are E3a/E3b —
+additive schema + new endpoints, safe to batch-deploy.
+
+## Pending user actions (do anytime)
+1. **Activate the cron** (5 min) — `AIBUILDCARE_INTERNAL_JOBS_SECRET`
+   on Render → Manual Deploy → cron-job.org POST every 15 min to
+   `/internal/jobs/tick` with header `X-Internal-Secret: <same>`.
+   See `STATUS_REPORT.md` / `ARCHITECTURE.md` §9.
+2. **Deploy `fd0ac95`** — when you're ready for E3a/E3b live.
+3. **Parking design question** — `docs/PARKING_DESIGN.md` has one
+   open question (handheld-scanner quick-report Y/N) before P1 starts.
+
+## What's next (next session)
+- **E3c–i: frontend role-aware UI.** Backend prerequisites done
+  (E3a/E3b). The Vue work shows: assigned_staff on complaint cards,
+  escalation level badge, major_incident banner, vendor directory
+  page (`/vendors`), staff management page, escalation hierarchy
+  editor, RBAC override editor (OEM), role-hidden nav, optional
+  staff mobile shortcut.
+- Then **Parking P1–P5** (vehicles registry + complaint extensions
+  + repeat-offender flag + clamping authorization + frontend).
+
+For full module-by-module map see **[ARCHITECTURE.md](ARCHITECTURE.md)**
+(written 2026-05-20 — start there if you've never read this repo).
+
 
 ## SESSION 3 CLOSE — what changed
 - **Prod Supabase cleared to a clean pilot slate**: `complaints = 0`;
