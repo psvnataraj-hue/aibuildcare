@@ -202,12 +202,19 @@ async def rate(
     # THEY filed. reporter_email is the ownership marker. Other roles
     # (staff/manager/admin/...) are moderating, not creating fake
     # ratings, and stay unaffected.
+    #
+    # Normalize both sides + reject empty: emails on email-channel
+    # intake come verbatim from the From: header so case can differ
+    # from the user's registered email; and legacy rows / malformed
+    # JWTs can leave either side as "" which would loose-match.
     if user.get("role") == "resident":
         try:
             owner = svc.get_complaint(cid, society_id=sid)
         except svc.ComplaintError as e:
             raise HTTPException(status_code=404, detail=str(e))
-        if owner.get("reporter_email") != user.get("email"):
+        me = (user.get("email") or "").strip().casefold()
+        them = (owner.get("reporter_email") or "").strip().casefold()
+        if not me or me != them:
             raise HTTPException(
                 status_code=403,
                 detail="residents can only rate their own complaints",

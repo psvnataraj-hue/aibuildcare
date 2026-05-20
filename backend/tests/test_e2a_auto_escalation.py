@@ -81,6 +81,47 @@ def test_tick_correct_secret_returns_accepted(client, monkeypatch):
     get_settings.cache_clear()
 
 
+def test_tick_logs_summary_line(client, monkeypatch, caplog):
+    """B1 follow-up: jobs_service.run_tick must emit a `tick complete:`
+    log line so ops can see per-tick activity even though the body
+    no longer carries the rollup. Calling run_tick directly because
+    BackgroundTasks would run after the response and out of the
+    test request's caplog window."""
+    from app.services import jobs_service
+
+    with caplog.at_level("INFO", logger="aibuildcare.jobs"):
+        jobs_service.run_tick()
+    assert any("tick complete" in r.getMessage() for r in caplog.records), (
+        "expected a 'tick complete' INFO log; got: "
+        + repr([r.getMessage() for r in caplog.records])
+    )
+
+
+def test_safe_run_tick_swallows_and_logs_crash(monkeypatch, caplog):
+    """B1 follow-up (H2): _safe_run_tick must catch ANY top-level
+    exception so a crash in run_tick (e.g. ImportError on its deferred
+    sub-imports) doesn't silently disappear into FastAPI's
+    BackgroundTasks. Caller (FastAPI's BackgroundTasks) must not see
+    the exception either — _safe_run_tick returns None on crash."""
+    from app.routers import internal_jobs
+
+    def boom(*_a, **_kw):
+        raise RuntimeError("simulated import-time crash")
+
+    monkeypatch.setattr(
+        "app.services.jobs_service.run_tick", boom,
+    )
+    with caplog.at_level("ERROR", logger="aibuildcare.jobs"):
+        result = internal_jobs._safe_run_tick()
+    assert result is None  # swallowed
+    assert any(
+        "tick crashed" in r.getMessage() for r in caplog.records
+    ), (
+        "expected a 'tick crashed' ERROR log; got: "
+        + repr([r.getMessage() for r in caplog.records])
+    )
+
+
 def test_tick_wrong_secret_same_length_403(client, monkeypatch):
     """B1: same-length wrong secret must still be rejected. We can't
     directly assert on timing, but exercising the compare_digest path

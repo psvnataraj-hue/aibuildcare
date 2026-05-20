@@ -123,3 +123,37 @@ def test_admin_can_still_rate_any(client, auth_header):
     )
     assert r.status_code == 200, r.text
     assert r.json()["rating"] == 4
+
+
+# ---- B4 follow-up (reviewer findings): email normalization --------
+def test_resident_can_rate_when_reporter_email_case_differs(
+    client, auth_header,
+):
+    """Email-channel intake takes reporter_email verbatim from the
+    From: header, so case can differ from the resident's registered
+    email. With .casefold() normalization, the rating goes through."""
+    _seed_resident()  # registered email is the lowercase RESIDENT_EMAIL
+    cid = _create_complaint_with_reporter(
+        client, auth_header, RESIDENT_EMAIL.upper(),
+    )
+    rh = _login(client, RESIDENT_EMAIL, RESIDENT_PWD)
+    r = client.post(
+        f"/api/v1/complaints/{cid}/rate",
+        json={"rating": 5, "feedback": "great"}, headers=rh,
+    )
+    assert r.status_code == 200, r.text
+
+
+def test_resident_cannot_rate_empty_string_reporter_email(
+    client, auth_header,
+):
+    """Empty-string reporter_email (legacy / form bug) must not
+    loose-match an empty user.email or anything else. Strict reject."""
+    _seed_resident()
+    cid = _create_complaint_with_reporter(client, auth_header, "")
+    rh = _login(client, RESIDENT_EMAIL, RESIDENT_PWD)
+    r = client.post(
+        f"/api/v1/complaints/{cid}/rate",
+        json={"rating": 1, "feedback": "x"}, headers=rh,
+    )
+    assert r.status_code == 403
