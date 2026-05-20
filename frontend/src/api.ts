@@ -126,6 +126,40 @@ export interface ContractorAnalytics {
   >
   availability: { status: string; last_activity: string | null }
 }
+// E1c / E3e — escalation hierarchy CRUD
+export interface HierarchyEntry {
+  id: number
+  society_id: number
+  role_name: 'manager' | 'sr_manager' | 'secretary' | 'chairman' | string
+  person_name: string
+  phone: string | null
+  whatsapp_enabled: boolean
+  email: string | null
+  escalation_level: number
+  response_time_target_minutes: number
+  active: boolean
+  created_at?: string
+}
+export interface HierarchyCreatePayload {
+  role_name: string
+  person_name: string
+  phone?: string | null
+  whatsapp_enabled?: boolean
+  email?: string | null
+  escalation_level?: number
+  response_time_target_minutes?: number
+}
+export interface HierarchyPatchPayload {
+  role_name?: string
+  person_name?: string
+  phone?: string | null
+  whatsapp_enabled?: boolean
+  email?: string | null
+  escalation_level?: number
+  response_time_target_minutes?: number
+  active?: boolean
+}
+
 // E3a / E3f — staff CRUD
 export interface StaffCategory {
   category: string
@@ -282,6 +316,23 @@ export const api = {
       `/api/v1/staff/${id}/categories/${encodeURIComponent(category)}`,
       { method: 'DELETE' }
     ),
+  // E1c / E3e — escalation hierarchy CRUD
+  listHierarchy: () =>
+    req<HierarchyEntry[]>('/api/v1/escalation/hierarchy'),
+  addHierarchy: (body: HierarchyCreatePayload) =>
+    req<HierarchyEntry>('/api/v1/escalation/hierarchy', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateHierarchy: (id: number, body: HierarchyPatchPayload) =>
+    req<HierarchyEntry>(`/api/v1/escalation/hierarchy/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteHierarchy: (id: number) =>
+    req<{ deleted: number }>(`/api/v1/escalation/hierarchy/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 export function openWS(onEvent: (e: { event: string; payload: any }) => void) {
