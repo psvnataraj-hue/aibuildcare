@@ -43,7 +43,9 @@ def require(permission: str) -> Callable[[dict], dict]:
     `permission` (single RBAC matrix in services.rbac)."""
 
     def _dep(user: dict = Depends(current_user)) -> dict:
-        if not rbac.has_permission(user.get("role"), permission):
+        if not rbac.has_permission(
+            user.get("role"), permission, user.get("society_id")
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"role '{user.get('role')}' lacks '{permission}'",

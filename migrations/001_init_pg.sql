@@ -123,6 +123,15 @@ INSERT INTO system_config (config_key, config_value) VALUES
     ('load_balancing_enabled', 'true')
 ON CONFLICT (config_key) DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS role_permission_overrides (
+    society_id  INTEGER NOT NULL REFERENCES societies(id),
+    role        TEXT NOT NULL,
+    permission  TEXT NOT NULL,
+    granted     INTEGER NOT NULL DEFAULT 1,
+    updated_at  TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
+    PRIMARY KEY (society_id, role, permission)
+);
+
 INSERT INTO categories (name, sla_hours) VALUES
     ('AC/Cooling', 4),
     ('Plumbing', 8),

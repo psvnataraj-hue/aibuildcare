@@ -111,6 +111,15 @@ CREATE TABLE IF NOT EXISTS system_config (
     config_value TEXT NOT NULL,
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS role_permission_overrides (
+    society_id  INTEGER NOT NULL REFERENCES societies(id),
+    role        TEXT NOT NULL,
+    permission  TEXT NOT NULL,
+    granted     INTEGER NOT NULL DEFAULT 1,
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (society_id, role, permission)
+);
 INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES
     ('max_pending_jobs_per_contractor', '10'),
     ('load_balancing_enabled', 'true');

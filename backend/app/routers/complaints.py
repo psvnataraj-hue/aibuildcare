@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
-from ..deps import current_user, current_society
+from ..deps import current_user, current_society, require
 from ..schemas import (
     ComplaintCreate,
     AssignRequest,
@@ -10,20 +10,22 @@ from ..schemas import (
     ConfigUpdate,
 )
 from ..services import complaint_service as svc
-from ..services import system_config
+from ..services import rbac, system_config
 from ..services.ws_hub import hub
 from ..services.notify import send_whatsapp
 
 router = APIRouter(prefix="/api/v1", tags=["complaints"])
 
 
-@router.get("/analytics")
-def analytics(_: dict = Depends(current_user)) -> dict:
+@router.get("/analytics",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def analytics() -> dict:
     return svc.analytics()
 
 
-@router.get("/contractors")
-def contractors(_: dict = Depends(current_user)) -> list[dict]:
+@router.get("/contractors",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractors() -> list[dict]:
     from ..db import get_conn
 
     with get_conn() as conn:
@@ -35,7 +37,8 @@ def contractors(_: dict = Depends(current_user)) -> list[dict]:
         ]
 
 
-@router.get("/complaints")
+@router.get("/complaints",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
 def list_complaints(
     status: str | None = None,
     q: str | None = None,
@@ -47,7 +50,8 @@ def list_complaints(
     )
 
 
-@router.post("/complaints", status_code=201)
+@router.post("/complaints", status_code=201,
+             dependencies=[Depends(require(rbac.FILE_COMPLAINT))])
 async def create_complaint(
     body: ComplaintCreate, sid: int = Depends(current_society)
 ) -> dict:
@@ -59,60 +63,58 @@ async def create_complaint(
     return c
 
 
-@router.get("/admin/config")
-def get_admin_config(_: dict = Depends(current_user)) -> dict:
+@router.get("/admin/config",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def get_admin_config() -> dict:
     return system_config.all_config()
 
 
-@router.post("/admin/config/{key}")
-def set_admin_config(
-    key: str, body: ConfigUpdate, _: dict = Depends(current_user)
-) -> dict:
+@router.post("/admin/config/{key}",
+             dependencies=[Depends(require(rbac.MODIFY_CONFIG))])
+def set_admin_config(key: str, body: ConfigUpdate) -> dict:
     return system_config.set_config(key, body.value)
 
 
-@router.get("/contractors/analytics/summary")
-def contractors_analytics_summary(
-    _: dict = Depends(current_user),
-) -> dict:
+@router.get("/contractors/analytics/summary",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractors_analytics_summary() -> dict:
     return svc.analytics_summary()
 
 
-@router.get("/contractors/{cid}/analytics")
-def contractor_analytics(
-    cid: int, _: dict = Depends(current_user)
-) -> dict:
+@router.get("/contractors/{cid}/analytics",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractor_analytics(cid: int) -> dict:
     a = svc.contractor_analytics(cid)
     if not a:
         raise HTTPException(status_code=404, detail="contractor not found")
     return a
 
 
-@router.get("/contractors/by-category")
-def contractors_by_category(
-    category: str | None = None, _: dict = Depends(current_user)
-) -> list[dict]:
+@router.get("/contractors/by-category",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractors_by_category(category: str | None = None) -> list[dict]:
     from ..services.contractor_router import contractors_by_category as cbc
 
     return cbc(category)
 
 
-@router.get("/contractors/performance")
-def contractors_performance(_: dict = Depends(current_user)) -> list[dict]:
+@router.get("/contractors/performance",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractors_performance() -> list[dict]:
     return svc.contractor_performance()
 
 
-@router.get("/contractors/{cid}/performance")
-def contractor_performance(
-    cid: int, _: dict = Depends(current_user)
-) -> dict:
+@router.get("/contractors/{cid}/performance",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
+def contractor_performance(cid: int) -> dict:
     rows = svc.contractor_performance(cid)
     if not rows:
         raise HTTPException(status_code=404, detail="contractor not found")
     return rows[0]
 
 
-@router.get("/complaints/{cid}")
+@router.get("/complaints/{cid}",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
 def get_complaint(
     cid: int, sid: int = Depends(current_society)
 ) -> dict:
@@ -125,7 +127,8 @@ def get_complaint(
     return c
 
 
-@router.post("/complaints/{cid}/assign")
+@router.post("/complaints/{cid}/assign",
+             dependencies=[Depends(require(rbac.ASSIGN))])
 async def assign(
     cid: int, body: AssignRequest, sid: int = Depends(current_society)
 ) -> dict:
@@ -163,7 +166,8 @@ async def assign(
     return c
 
 
-@router.post("/complaints/{cid}/rate")
+@router.post("/complaints/{cid}/rate",
+             dependencies=[Depends(require(rbac.FILE_COMPLAINT))])
 async def rate(
     cid: int, body: RateRequest, sid: int = Depends(current_society)
 ) -> dict:
@@ -178,7 +182,8 @@ async def rate(
     return r
 
 
-@router.post("/complaints/{cid}/status")
+@router.post("/complaints/{cid}/status",
+             dependencies=[Depends(require(rbac.RESOLVE))])
 async def set_status(
     cid: int, body: StatusUpdateRequest,
     sid: int = Depends(current_society),
@@ -191,14 +196,16 @@ async def set_status(
     return c
 
 
-@router.get("/complaints/{cid}/messages")
+@router.get("/complaints/{cid}/messages",
+            dependencies=[Depends(require(rbac.VIEW_ALL))])
 def messages(
     cid: int, sid: int = Depends(current_society)
 ) -> list[dict]:
     return svc.list_messages(cid, society_id=sid)
 
 
-@router.post("/complaints/{cid}/messages", status_code=201)
+@router.post("/complaints/{cid}/messages", status_code=201,
+             dependencies=[Depends(require(rbac.RESOLVE))])
 async def add_message(
     cid: int, body: MessageCreate, sid: int = Depends(current_society)
 ) -> dict:

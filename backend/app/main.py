@@ -8,7 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.config import get_settings  # noqa: E402
-from app.routers import health, auth, complaints, webhooks  # noqa: E402
+from app.routers import (  # noqa: E402
+    admin,
+    auth,
+    complaints,
+    health,
+    webhooks,
+)
 
 
 def create_app() -> FastAPI:
@@ -24,6 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(complaints.router)
+    app.include_router(admin.router)
     app.include_router(webhooks.router)
 
     @app.on_event("startup")

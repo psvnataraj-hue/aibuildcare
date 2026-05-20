@@ -62,5 +62,35 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 
-def has_permission(role: str | None, permission: str) -> bool:
+def has_permission(
+    role: str | None,
+    permission: str,
+    society_id: int | None = None,
+) -> bool:
+    """Effective permission check.
+
+    Resolution order:
+      1. `admin` is the OEM superuser -> always granted (never overridable).
+      2. If society_id given and a per-society override exists for
+         (role, permission), use it.
+      3. Else, fall back to the default ROLE_PERMISSIONS matrix.
+
+    DB lookup failures are resilient: fall back to the default matrix.
+    """
+    if role == "admin":
+        return True  # OEM superuser; deliberately not overridable
+    if society_id is not None:
+        try:
+            from ..db import get_conn
+
+            with get_conn() as conn:
+                row = conn.execute(
+                    "SELECT granted FROM role_permission_overrides "
+                    "WHERE society_id = ? AND role = ? AND permission = ?",
+                    (society_id, role, permission),
+                ).fetchone()
+                if row is not None:
+                    return bool(dict(row)["granted"])
+        except Exception:
+            pass  # resilient: fall back to default matrix
     return permission in ROLE_PERMISSIONS.get(role or "", frozenset())
