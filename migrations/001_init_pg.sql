@@ -219,5 +219,23 @@ INSERT INTO categories (name, sla_hours) VALUES
     ('Elevator', 2),
     ('Housekeeping', 24),
     ('Security', 2),
-    ('Other', 24)
+    ('Other', 24),
+    -- E1 expanded categories
+    ('Fire Safety', 1),
+    ('Generator/Power Backup', 4),
+    ('Water Supply', 4),
+    ('Sewage/Drainage', 4),
+    ('Lighting', 12),
+    ('Garbage/Waste', 8),
+    ('Pest Control', 24),
+    ('Gardening', 48),
+    ('Carpentry', 24),
+    ('Painting', 48),
+    ('Civil/Structural', 72),
+    ('CCTV/Intercom', 24),
+    ('Swimming Pool', 24),
+    ('Sports/Gym/Clubhouse', 48),
+    ('Children''s Play Area', 24),
+    ('Parking Management', 24),
+    ('Noise/Visitor', 4)
 ON CONFLICT (name) DO NOTHING;

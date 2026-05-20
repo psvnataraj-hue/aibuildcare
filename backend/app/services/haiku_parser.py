@@ -15,12 +15,33 @@ from ..config import get_settings
 from ..schemas import ParsedComplaint
 
 CATEGORIES = [
-    "AC/Cooling",
-    "Plumbing",
-    "Electrical",
-    "Elevator",
-    "Housekeeping",
+    # safety-critical
+    "Fire Safety",
     "Security",
+    "Elevator",
+    "Generator/Power Backup",
+    # building / common-area services
+    "Electrical",
+    "Plumbing",
+    "AC/Cooling",
+    "Water Supply",
+    "Sewage/Drainage",
+    "Lighting",
+    "Housekeeping",
+    "Garbage/Waste",
+    "Pest Control",
+    "Gardening",
+    "Carpentry",
+    "Painting",
+    "Civil/Structural",
+    "CCTV/Intercom",
+    # amenities
+    "Swimming Pool",
+    "Sports/Gym/Clubhouse",
+    "Children's Play Area",
+    # community / non-physical
+    "Parking Management",
+    "Noise/Visitor",
     "Other",
 ]
 
@@ -52,6 +73,9 @@ def _configured_langs() -> list[str]:
     return out or ["hi"]
 
 _KEYWORDS: dict[str, list[str]] = {
+    # NOTE: order matters — first match wins. Existing 6 stay first to
+    # preserve test_haiku_parser expectations (kachra->Housekeeping,
+    # nal/paani->Plumbing, light->Electrical, cctv->Security).
     "AC/Cooling": ["ac", "a/c", "air condition", "cooling", "thanda",
                    "fridge", "cooler"],
     "Plumbing": ["water", "leak", "tap", "pipe", "nal", "plumb",
@@ -63,6 +87,35 @@ _KEYWORDS: dict[str, list[str]] = {
                      "sweep", "housekeep", "pest"],
     "Security": ["guard", "security", "gate", "watchman", "theft",
                  "intruder", "cctv"],
+    # E1: expanded categories — distinctive keywords only so the rule
+    # fallback still defers to the LLM when ambiguous.
+    "Fire Safety": ["fire", "smoke alarm", "extinguisher", "sprinkler"],
+    "Generator/Power Backup": ["generator", "dg set", "inverter",
+                               "backup power"],
+    "Water Supply": ["tanker", "water tanker", "borewell", "no water"],
+    "Sewage/Drainage": ["sewer", "sewage", "manhole", "gutter", "nala",
+                        "overflow"],
+    "Lighting": ["bulb", "tubelight", "tube light", "street light",
+                 "corridor light"],
+    "Garbage/Waste": ["dustbin", "trash bin", "waste collection",
+                      "rubbish"],
+    "Pest Control": ["cockroach", "rat", "termite", "mosquito",
+                     "rodent", "fumigat", "fogging", "insect"],
+    "Gardening": ["garden", "gardener", "mali", "lawn", "landscap",
+                  "tree", "grass"],
+    "Carpentry": ["carpenter", "carpentry", "furniture", "wood",
+                  "cabinet", "cupboard", "hinge"],
+    "Painting": ["paint", "color", "whitewash"],
+    "Civil/Structural": ["crack", "plaster", "ceiling", "slab broken",
+                         "wall damage", "structural"],
+    "CCTV/Intercom": ["intercom"],
+    "Swimming Pool": ["pool", "swimming", "chlorine"],
+    "Sports/Gym/Clubhouse": ["gym", "treadmill", "clubhouse",
+                             "badminton"],
+    "Children's Play Area": ["playground", "play area", "swing",
+                             "slide"],
+    "Parking Management": ["parking", "car park", "bike park"],
+    "Noise/Visitor": ["noise", "loud", "music too", "party", "disturb"],
 }
 
 _URGENT = ["urgent", "emergency", "asap", "turant", "jaldi", "immediately",

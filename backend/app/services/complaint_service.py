@@ -6,12 +6,33 @@ from .haiku_parser import parse_complaint
 
 # fallback completion estimate (hours) when there is no history yet
 DEFAULT_FORECAST_HOURS = {
-    "AC/Cooling": 24,
-    "Plumbing": 24,
-    "Electrical": 12,
-    "Elevator": 6,
-    "Housekeeping": 24,
+    # safety-critical
+    "Fire Safety": 4,
     "Security": 6,
+    "Elevator": 6,
+    "Generator/Power Backup": 8,
+    # building / common-area services
+    "Electrical": 12,
+    "Plumbing": 24,
+    "AC/Cooling": 24,
+    "Water Supply": 12,
+    "Sewage/Drainage": 12,
+    "Lighting": 24,
+    "Housekeeping": 24,
+    "Garbage/Waste": 24,
+    "Pest Control": 48,
+    "Gardening": 72,
+    "Carpentry": 48,
+    "Painting": 72,
+    "Civil/Structural": 96,
+    "CCTV/Intercom": 24,
+    # amenities
+    "Swimming Pool": 48,
+    "Sports/Gym/Clubhouse": 72,
+    "Children's Play Area": 48,
+    # community / non-physical
+    "Parking Management": 24,
+    "Noise/Visitor": 6,
     "Other": 48,
 }
 

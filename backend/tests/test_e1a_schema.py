@@ -76,4 +76,4 @@ def test_seed_is_idempotent(client):
                 (sid,),
             ).fetchone()
         )["c"]
-    assert n == 7  # one row per category, no duplicates
+    assert n == 24  # one row per category (E1 expanded set)

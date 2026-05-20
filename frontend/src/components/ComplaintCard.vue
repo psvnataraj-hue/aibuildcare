@@ -10,6 +10,23 @@ import {
   Shield,
   Wrench,
   Image as ImageIcon,
+  Hammer,
+  Sprout,
+  Bug,
+  Trash,
+  Droplet,
+  Filter,
+  Lightbulb,
+  Brush,
+  Video,
+  Power,
+  Flame,
+  Building2,
+  Waves,
+  Car,
+  Volume2,
+  Dumbbell,
+  Baby,
 } from 'lucide-vue-next'
 import Card from './ui/Card.vue'
 import Badge from './ui/Badge.vue'
@@ -19,12 +36,31 @@ const props = defineProps<{ c: Complaint }>()
 const router = useRouter()
 
 const ICONS: Record<string, any> = {
+  // original 6
   'AC/Cooling': Snowflake,
   Plumbing: Droplets,
   Electrical: Zap,
   Elevator: ArrowUpDown,
   Housekeeping: Trash2,
   Security: Shield,
+  // E1 expanded set
+  Carpentry: Hammer,
+  Gardening: Sprout,
+  'Pest Control': Bug,
+  'Garbage/Waste': Trash,
+  'Water Supply': Droplet,
+  'Sewage/Drainage': Filter,
+  Lighting: Lightbulb,
+  Painting: Brush,
+  'CCTV/Intercom': Video,
+  'Generator/Power Backup': Power,
+  'Fire Safety': Flame,
+  'Civil/Structural': Building2,
+  'Swimming Pool': Waves,
+  'Parking Management': Car,
+  'Noise/Visitor': Volume2,
+  'Sports/Gym/Clubhouse': Dumbbell,
+  "Children's Play Area": Baby,
 }
 const icon = computed(() => ICONS[props.c.category || ''] || Wrench)
 

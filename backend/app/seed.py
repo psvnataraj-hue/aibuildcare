@@ -60,13 +60,34 @@ def seed() -> None:
             # E1a: seed sensible per-category SLA defaults for the
             # default society (idempotent — skip if a row exists).
             SLA_DEFAULTS = {
-                "AC/Cooling":   (30, 4),
-                "Plumbing":     (60, 8),
-                "Electrical":   (30, 6),
-                "Elevator":     (15, 2),     # safety
-                "Housekeeping": (60, 24),
-                "Security":     (15, 2),     # safety
-                "Other":        (120, 24),
+                # safety-critical (response_minutes, resolve_hours)
+                "Fire Safety":           (15, 1),
+                "Security":              (15, 2),
+                "Elevator":              (15, 2),
+                "Generator/Power Backup": (30, 4),
+                # common-area services
+                "Electrical":            (30, 6),
+                "Plumbing":              (60, 8),
+                "AC/Cooling":            (30, 4),
+                "Water Supply":          (30, 4),
+                "Sewage/Drainage":       (30, 4),
+                "Lighting":              (60, 12),
+                "Housekeeping":          (60, 24),
+                "Garbage/Waste":         (60, 8),
+                "Pest Control":          (120, 24),
+                "Gardening":             (120, 48),
+                "Carpentry":             (60, 24),
+                "Painting":              (120, 48),
+                "Civil/Structural":      (120, 72),
+                "CCTV/Intercom":         (60, 24),
+                # amenities
+                "Swimming Pool":         (120, 24),
+                "Sports/Gym/Clubhouse":  (120, 48),
+                "Children's Play Area":  (60, 24),
+                # community / non-physical
+                "Parking Management":    (60, 24),
+                "Noise/Visitor":         (30, 4),
+                "Other":                 (120, 24),
             }
             ESC = (
                 '{"1":{"after_hours":2,"notify":"manager"},'
