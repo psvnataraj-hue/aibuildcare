@@ -64,7 +64,11 @@ def test_tick_wrong_secret_403(client, monkeypatch):
     get_settings.cache_clear()
 
 
-def test_tick_correct_secret_returns_summary(client, monkeypatch):
+def test_tick_correct_secret_returns_accepted(client, monkeypatch):
+    """B1: tick now returns 202 immediately + spawns work via
+    BackgroundTasks so Render's ~30s HTTP timeout cannot truncate a
+    slow tick. The per-tick summary moved from the response body to
+    server logs."""
     monkeypatch.setenv("AIBUILDCARE_INTERNAL_JOBS_SECRET", "tick-secret")
     from app.config import get_settings
     get_settings.cache_clear()
@@ -72,12 +76,24 @@ def test_tick_correct_secret_returns_summary(client, monkeypatch):
         "/internal/jobs/tick",
         headers={"X-Internal-Secret": "tick-secret"},
     )
-    assert r.status_code == 200
-    body = r.json()
-    assert "auto_escalations" in body
-    assert {"checked", "escalated", "errors"} <= set(
-        body["auto_escalations"]
+    assert r.status_code == 202
+    assert r.json() == {"status": "accepted"}
+    get_settings.cache_clear()
+
+
+def test_tick_wrong_secret_same_length_403(client, monkeypatch):
+    """B1: same-length wrong secret must still be rejected. We can't
+    directly assert on timing, but exercising the compare_digest path
+    with equal-length inputs catches the obvious "fall back to ==" or
+    "short-circuit on length mismatch" regressions."""
+    monkeypatch.setenv("AIBUILDCARE_INTERNAL_JOBS_SECRET", "tick-secret")
+    from app.config import get_settings
+    get_settings.cache_clear()
+    r = client.post(
+        "/internal/jobs/tick",
+        headers={"X-Internal-Secret": "wrong-secre"},  # same length
     )
+    assert r.status_code == 403
     get_settings.cache_clear()
 
 

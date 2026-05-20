@@ -194,8 +194,24 @@ async def assign(
 @router.post("/complaints/{cid}/rate",
              dependencies=[Depends(require(rbac.FILE_COMPLAINT))])
 async def rate(
-    cid: int, body: RateRequest, sid: int = Depends(current_society)
+    cid: int, body: RateRequest,
+    sid: int = Depends(current_society),
+    user: dict = Depends(current_user),
 ) -> dict:
+    # B4 (Gemini audit): a 'resident' role can only rate complaints
+    # THEY filed. reporter_email is the ownership marker. Other roles
+    # (staff/manager/admin/...) are moderating, not creating fake
+    # ratings, and stay unaffected.
+    if user.get("role") == "resident":
+        try:
+            owner = svc.get_complaint(cid, society_id=sid)
+        except svc.ComplaintError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        if owner.get("reporter_email") != user.get("email"):
+            raise HTTPException(
+                status_code=403,
+                detail="residents can only rate their own complaints",
+            )
     try:
         r = svc.rate_complaint(
             cid, body.rating, body.feedback, society_id=sid
