@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     average_rating REAL NOT NULL DEFAULT 5.0,
     society_id    INTEGER REFERENCES societies(id),
     is_active     INTEGER NOT NULL DEFAULT 1,
+    available_for_personal_jobs INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

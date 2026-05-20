@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS contractors (
     average_rating NUMERIC(3,2) NOT NULL DEFAULT 5.0,
     society_id  INTEGER REFERENCES societies(id),
     is_active   INTEGER NOT NULL DEFAULT 1,
+    available_for_personal_jobs INTEGER NOT NULL DEFAULT 1,
     created_at  TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
 );
 
@@ -96,6 +97,8 @@ ALTER TABLE complaints ADD COLUMN IF NOT EXISTS escalated_to_chairman_at TEXT;
 ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_complainant_update_at TEXT;
 ALTER TABLE complaints ADD COLUMN IF NOT EXISTS last_assigned_staff_update_at TEXT;
 ALTER TABLE complaints ADD COLUMN IF NOT EXISTS reminder_sent_count INTEGER NOT NULL DEFAULT 0;
+-- E1b': vendor directory opt-out
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS available_for_personal_jobs INTEGER NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS complaint_messages (
     id           SERIAL PRIMARY KEY,
