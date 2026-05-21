@@ -13,10 +13,16 @@ import {
 } from 'lucide-vue-next'
 import {
   api,
+  PERMISSIONS,
   type Complaint,
   type Contractor,
   type Message,
 } from '../api'
+import { can } from '../lib/currentUser'
+
+// E3h — gate action buttons by effective permission.
+const canAssign = computed(() => can(PERMISSIONS.ASSIGN))
+const canResolve = computed(() => can(PERMISSIONS.RESOLVE))
 import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
@@ -497,7 +503,7 @@ async function setStatus(s: string) {
             </div>
           </div>
         </div>
-        <div class="flex gap-2 mt-4">
+        <div v-if="canResolve" class="flex gap-2 mt-4">
           <input
             v-model="msg"
             placeholder="Reply…"
@@ -514,7 +520,7 @@ async function setStatus(s: string) {
       </Card>
 
       <Card class="space-y-5">
-        <div>
+        <div v-if="canResolve">
           <p class="text-sm text-muted-foreground mb-2">Quick actions</p>
           <div class="flex flex-wrap gap-1.5">
             <button
@@ -530,7 +536,7 @@ async function setStatus(s: string) {
             </button>
           </div>
         </div>
-        <div>
+        <div v-if="canAssign">
           <p class="text-sm text-muted-foreground mb-1">Contractor</p>
           <div
             v-if="assignedContractor"
@@ -569,6 +575,14 @@ async function setStatus(s: string) {
             {{ assignedContractor ? 'Reassign' : 'Assign' }}
           </button>
         </div>
+        <!-- Read-only viewers see why the action panel is empty. -->
+        <p
+          v-if="!canResolve && !canAssign"
+          class="text-sm text-muted-foreground italic"
+        >
+          Read-only access — sign in as a staff/manager/admin to act
+          on this ticket.
+        </p>
         <p
           v-if="error"
           class="text-destructive text-sm bg-destructive/10 rounded-md px-3 py-2"

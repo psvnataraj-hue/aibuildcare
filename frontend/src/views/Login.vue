@@ -3,9 +3,12 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Building2, Loader2 } from 'lucide-vue-next'
 import { api, setToken } from '../api'
+import { loadCurrentUser } from '../lib/currentUser'
 
 const email = ref('admin@aibuildcare.app')
-const password = ref('ChangeMe!2026')
+// Cleared 2026-05-21: previously prefilled with the leaked default
+// "ChangeMe!2026" which no longer works in prod after PR #3.
+const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const router = useRouter()
@@ -16,6 +19,9 @@ async function submit() {
   try {
     const { access_token } = await api.login(email.value, password.value)
     setToken(access_token)
+    // E3h: load identity + permissions before navigating so the nav
+    // can render correctly on first paint (no flash of every-link).
+    await loadCurrentUser()
     router.push('/')
   } catch (e: any) {
     error.value = e.message || 'login failed'

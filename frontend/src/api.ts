@@ -226,12 +226,41 @@ export interface AnalyticsSummary {
   >
 }
 
+// E3h — identity + effective permissions
+export interface CurrentUser {
+  id: number
+  email: string
+  full_name: string | null
+  role: string
+  society_id: number | null
+  permissions: string[]
+}
+
+// Permission keys mirror backend/app/services/rbac.py constants.
+// Keep this list in sync; the source of truth is the backend.
+export const PERMISSIONS = {
+  FILE_COMPLAINT: 'file_complaint',
+  VIEW_OWN: 'view_own',
+  VIEW_ALL: 'view_all',
+  ASSIGN: 'assign',
+  RESOLVE: 'resolve',
+  ESCALATE: 'escalate',
+  AUTHORIZE_ENFORCEMENT: 'authorize_enforcement',
+  MODIFY_STAFF: 'modify_staff',
+  MODIFY_CONFIG: 'modify_config',
+  APPROVE_REPORTS: 'approve_reports',
+  VIEW_FINANCIAL: 'view_financial',
+} as const
+
 export const api = {
   login: (email: string, password: string) =>
     req<{ access_token: string }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  me: () => req<CurrentUser>('/api/v1/auth/me'),
+  logout: () =>
+    req<void>('/api/v1/auth/logout', { method: 'POST' }),
   analytics: () =>
     req<{
       total: number

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   LayoutDashboard,
@@ -18,9 +18,13 @@ import {
   User,
   HelpCircle,
 } from 'lucide-vue-next'
-import { clearToken, hasToken } from './api'
+import { api, clearToken, hasToken, PERMISSIONS } from './api'
 import { isDark, toggleTheme } from './lib/theme'
 import { lang, t, toggleLang } from './lib/i18n'
+import {
+  currentUser,
+  clearCurrentUser,
+} from './lib/currentUser'
 import Toaster from './components/ui/Toaster.vue'
 
 const route = useRoute()
@@ -28,18 +32,39 @@ const router = useRouter()
 const menuOpen = ref(false)
 const profileOpen = ref(false)
 
-const nav = [
-  { to: '/', key: 'dashboard', icon: LayoutDashboard },
-  { to: '/complaints', key: 'complaints', icon: ClipboardList },
-  { to: '/performance', key: 'contractors', icon: Wrench },
-  { to: '/staff', key: 'staff', icon: UsersIcon },
-  { to: '/hierarchy', key: 'hierarchy', icon: TrendingUp },
-  { to: '/analytics', key: 'analytics', icon: BarChart3 },
-  { to: '/settings', key: 'settings', icon: SettingsIcon },
-]
+// E3h: every nav item declares the minimum permission it requires.
+// `null` = always visible to any authenticated user (Dashboard,
+// Settings are user-scoped; Complaints requires at least the basic
+// view-own/view-all gates the page itself enforces server-side).
+const ALL_NAV = [
+  { to: '/', key: 'dashboard', icon: LayoutDashboard, perm: null },
+  { to: '/complaints', key: 'complaints', icon: ClipboardList, perm: null },
+  { to: '/performance', key: 'contractors', icon: Wrench,
+    perm: PERMISSIONS.VIEW_ALL },
+  { to: '/staff', key: 'staff', icon: UsersIcon,
+    perm: PERMISSIONS.MODIFY_STAFF },
+  { to: '/hierarchy', key: 'hierarchy', icon: TrendingUp,
+    perm: PERMISSIONS.MODIFY_CONFIG },
+  { to: '/analytics', key: 'analytics', icon: BarChart3,
+    perm: PERMISSIONS.VIEW_ALL },
+  { to: '/settings', key: 'settings', icon: SettingsIcon, perm: null },
+] as const
 
-function logout() {
+const nav = computed(() => {
+  const u = currentUser.value
+  if (!u) return ALL_NAV.filter((n) => n.perm === null)
+  return ALL_NAV.filter(
+    (n) => n.perm === null || u.permissions.includes(n.perm),
+  )
+})
+
+async function logout() {
+  // E3h: server-side revoke (B2 from security PR #1) BEFORE clearing
+  // local token, so the auth_sessions row is deleted while we still
+  // have the bearer to authenticate the DELETE.
+  try { await api.logout() } catch { /* graceful: log out locally anyway */ }
   clearToken()
+  clearCurrentUser()
   router.push('/login')
 }
 const shell = () => hasToken() && route.path !== '/login'
