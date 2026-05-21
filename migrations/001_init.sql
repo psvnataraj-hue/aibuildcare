@@ -244,7 +244,7 @@ INSERT OR IGNORE INTO categories (name, sla_hours) VALUES
 
 -- P1 (parking vertical): per-society vehicle registry.
 -- Plate is unique WITHIN a society (different societies may register
--- the same plate; not a global identity). active is a soft-delete flag.
+-- the same plate (not a global identity). active is a soft-delete flag.
 CREATE TABLE IF NOT EXISTS vehicles (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     society_id        INTEGER NOT NULL REFERENCES societies(id),

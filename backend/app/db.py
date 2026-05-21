@@ -86,6 +86,21 @@ class _PGConn:
         self._raw.close()
 
 
+def _is_executable_sql(stmt: str) -> bool:
+    """A migration fragment is executable only if at least one line
+    isn't blank or a `-- comment`. A literal `;` inside an SQL comment
+    (regression we hit on 2026-05-21) splits the comment in half;
+    after `.strip()` the trailing half is a non-empty comment-only
+    fragment that Postgres rejects with 'can't execute an empty
+    query'. This guard skips those silently."""
+    for line in stmt.splitlines():
+        line = line.strip()
+        if not line or line.startswith("--"):
+            continue
+        return True
+    return False
+
+
 def init_db(db_url: str | None = None) -> None:
     url = db_url or _url()
     if _is_pg(url):
@@ -95,9 +110,14 @@ def init_db(db_url: str | None = None) -> None:
         conn = psycopg2.connect(url)
         try:
             with conn.cursor() as cur:
-                # statements are ';'-terminated and contain no inner ';'
-                for stmt in filter(None, (s.strip() for s in sql.split(";"))):
-                    cur.execute(stmt)
+                # statements are ';'-terminated and (mostly) contain no
+                # inner ';'. Guard against comments that happen to
+                # contain a literal ';' by skipping comment-only
+                # fragments — see _is_executable_sql.
+                for raw in sql.split(";"):
+                    stmt = raw.strip()
+                    if stmt and _is_executable_sql(stmt):
+                        cur.execute(stmt)
             conn.commit()
         finally:
             conn.close()
