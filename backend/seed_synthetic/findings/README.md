@@ -27,6 +27,7 @@ attached, and a recommended path forward.
 |---|---|---|---|
 | 001 | Admin role has cross-tenant data reach | **HIGH** | Dormant (only one admin exists; activates the moment a second admin is created on a different society) |
 | 002 | No orphaned-work handling when staff/contractors are deactivated | MEDIUM | Active (deactivation today already produces zombie complaints) |
+| 003 | User-facing "complaint/complainant" labels read wrong outside housing | LOW (cosmetic) but high-impact at demo time | Active for non-housing verticals; must be addressed before first Sunrise / Stellar / Meridian demo |
 
 ## How this directory grows
 

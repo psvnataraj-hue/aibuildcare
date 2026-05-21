@@ -719,6 +719,51 @@ def _tester_accounts(societies: list[dict]) -> dict:
             "is_test_account": True,
         })
 
+    # Reserved live-tester resident slots — mirrors the parking config's
+    # `live_test_plates` pattern. These are RESERVATIONS, not seed records:
+    # they hold a place for Sravya's real WhatsApp number (and optionally
+    # her spouse's) to be added as recognized Greenwood residents during
+    # live testing. Their phones are NOT in the +91 99000 test range —
+    # they are real numbers and the cron WILL correctly fire for them.
+    # The seeder Part 6 skips entries where phone_to_add is null and
+    # logs which slots are awaiting live phones.
+    reserved_slots = [
+        {
+            "reservation_id":    "sravya-primary-live",
+            "society_id":        100,
+            "society_name":      "Greenwood Residency",
+            "role":              "resident",
+            "target_unit_hint":  "A-4A or any unoccupied Tower-A unit",
+            "phone_to_add":      None,
+            "name_to_add":       None,
+            "purpose":
+                "Sravya's REAL WhatsApp number — primary live tester phone. "
+                "When provided, she becomes a recognized Greenwood resident "
+                "filing complaints from her actual phone. Cron WILL fire "
+                "(phone outside the +91 99000 test range, no "
+                "TEST_PHONE_SKIPPED short-circuit).",
+            "notes":
+                "Awaiting Nataraj's confirmation of phone availability. "
+                "Until provided, this slot is unfilled and the seeder "
+                "skips it.",
+        },
+        {
+            "reservation_id":    "sravya-secondary-live",
+            "society_id":        100,
+            "society_name":      "Greenwood Residency",
+            "role":              "resident",
+            "target_unit_hint":  "Same unit as sravya-primary-live (multi-occupant household)",
+            "phone_to_add":      None,
+            "name_to_add":       None,
+            "purpose":
+                "Optional second live tester phone (e.g., Sravya's spouse). "
+                "Simulates a multi-person household where two people in the "
+                "same unit can file complaints. Same cron-fires behaviour.",
+            "notes":
+                "OPTIONAL. Only filled if a second real phone is provided.",
+        },
+    ]
+
     return {
         "_meta": {
             "description":
@@ -734,8 +779,16 @@ def _tester_accounts(societies: list[dict]) -> dict:
             "out_of_scope_by_design":
                 "Sravya never gets an account on sid=1 (Palms). Nataraj's "
                 "real Palms admin account is unchanged by this seeding.",
+            "reserved_live_resident_slots_note":
+                "See `reserved_live_resident_slots` below. Mirrors the "
+                "live_test_plates pattern from parking configs — slots are "
+                "RESERVED, not seeded, until real phone numbers are "
+                "provided. When filled, the corresponding residents are "
+                "added to Greenwood with their REAL phones (not test-range "
+                "phones); cron then fires for them correctly.",
         },
         "accounts": accounts,
+        "reserved_live_resident_slots": reserved_slots,
     }
 
 
