@@ -62,6 +62,47 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 
+def permissions_for(
+    role: str | None,
+    society_id: int | None = None,
+) -> frozenset[str]:
+    """Effective permission set for a role within a society (E3h).
+
+    Computed in ONE DB query (vs 11 if we looped has_permission). Used
+    by /api/v1/auth/me so the frontend can hide nav + action buttons
+    without round-tripping per-permission. Order:
+      1. `admin` -> ALL_PERMISSIONS, no overrides applied.
+      2. Base = default ROLE_PERMISSIONS[role].
+      3. Apply per-society overrides (granted=1 adds, granted=0 removes).
+      4. Always falls back to base on DB failure.
+    """
+    if role == "admin":
+        return ALL_PERMISSIONS
+    base = set(ROLE_PERMISSIONS.get(role or "", frozenset()))
+    if society_id is None:
+        return frozenset(base)
+    try:
+        from ..db import get_conn
+
+        with get_conn() as conn:
+            rows = [
+                dict(r) for r in conn.execute(
+                    "SELECT permission, granted "
+                    "FROM role_permission_overrides "
+                    "WHERE society_id = ? AND role = ?",
+                    (society_id, role),
+                ).fetchall()
+            ]
+        for r in rows:
+            if r["granted"]:
+                base.add(r["permission"])
+            else:
+                base.discard(r["permission"])
+    except Exception:
+        pass  # resilient: fall back to default matrix
+    return frozenset(base)
+
+
 def has_permission(
     role: str | None,
     permission: str,

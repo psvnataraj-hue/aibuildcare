@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next'
 import {
   api,
+  PERMISSIONS,
   type Staff,
   type StaffCategory,
   type StaffCreatePayload,
@@ -24,6 +25,11 @@ import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
 import { toast } from '../lib/toast'
+import { can } from '../lib/currentUser'
+
+// E3h: read-only viewers (roles with VIEW_ALL but not MODIFY_STAFF)
+// can see the list; add/edit/delete/category-mgmt UI hides for them.
+const canModify = computed(() => can(PERMISSIONS.MODIFY_STAFF))
 
 // 24 categories from the seed (kept in sync with ComplaintCard ICONS dict)
 const CATEGORIES = [
@@ -224,6 +230,7 @@ onMounted(load)
           Show inactive
         </label>
         <button
+          v-if="canModify"
           class="inline-flex items-center gap-1 bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90"
           @click="showCreate = true"
         >
@@ -242,6 +249,7 @@ onMounted(load)
         contractors.
       </p>
       <button
+        v-if="canModify"
         class="mt-4 inline-flex items-center gap-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
         @click="showCreate = true"
       >
@@ -315,7 +323,7 @@ onMounted(load)
           </span>
         </div>
 
-        <div class="mt-4 flex gap-2">
+        <div v-if="canModify" class="mt-4 flex gap-2">
           <button
             class="flex-1 inline-flex items-center justify-center gap-1 border rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
             @click="openEdit(s)"

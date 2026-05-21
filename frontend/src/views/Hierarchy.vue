@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next'
 import {
   api,
+  PERMISSIONS,
   type HierarchyEntry,
   type HierarchyCreatePayload,
   type HierarchyPatchPayload,
@@ -19,6 +20,11 @@ import {
 import Card from '../components/ui/Card.vue'
 import Spinner from '../components/ui/Spinner.vue'
 import { toast } from '../lib/toast'
+import { can } from '../lib/currentUser'
+
+// E3h: viewers can see the hierarchy; only roles with MODIFY_CONFIG
+// (sr_manager / secretary / chairman / admin by default) can edit.
+const canModify = computed(() => can(PERMISSIONS.MODIFY_CONFIG))
 
 // 4 levels — each maps to a specific role_name expected by the cron
 // escalation logic. Adding entries with other role_names is allowed
@@ -230,6 +236,7 @@ onMounted(load)
             </p>
           </div>
           <button
+            v-if="canModify"
             class="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md bg-primary/10 text-primary hover:bg-primary/20"
             title="Add person at this level"
             @click="openAdd(lvl.level)"
@@ -265,7 +272,7 @@ onMounted(load)
               <Mail class="h-3 w-3" />
               <span class="truncate">{{ e.email }}</span>
             </p>
-            <div class="mt-2 flex gap-1">
+            <div v-if="canModify" class="mt-2 flex gap-1">
               <button
                 class="flex-1 inline-flex items-center justify-center gap-1 border rounded px-1 py-0.5 text-[11px] hover:bg-secondary"
                 @click="openEdit(e)"
