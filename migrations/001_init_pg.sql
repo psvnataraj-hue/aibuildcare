@@ -260,3 +260,27 @@ INSERT INTO categories (name, sla_hours) VALUES
     ('Parking Management', 24),
     ('Noise/Visitor', 4)
 ON CONFLICT (name) DO NOTHING;
+
+-- P1 (parking vertical): per-society vehicle registry.
+-- Plate is unique WITHIN a society (different societies may register
+-- the same plate; not a global identity). active is a soft-delete flag.
+CREATE TABLE IF NOT EXISTS vehicles (
+    id                SERIAL PRIMARY KEY,
+    society_id        INTEGER NOT NULL REFERENCES societies(id),
+    plate_number      TEXT NOT NULL,
+    owner_unit_number TEXT,
+    owner_name        TEXT,
+    owner_phone       TEXT,
+    vehicle_type      TEXT,
+    make_model        TEXT,
+    color             TEXT,
+    registered_at     TEXT,
+    active            INTEGER NOT NULL DEFAULT 1,
+    notes             TEXT,
+    created_at        TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"'),
+    UNIQUE(society_id, plate_number)
+);
+CREATE INDEX IF NOT EXISTS idx_vehicles_society
+    ON vehicles(society_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_plate
+    ON vehicles(society_id, plate_number);

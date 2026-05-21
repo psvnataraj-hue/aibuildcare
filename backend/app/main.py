@@ -16,6 +16,7 @@ from app.routers import (  # noqa: E402
     health,
     internal_jobs,
     staff,
+    vehicles,
     vendors,
     webhooks,
 )
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(vendors.router)
     app.include_router(escalation.router)
     app.include_router(staff.router)
+    app.include_router(vehicles.router)
     app.include_router(internal_jobs.router)
     app.include_router(webhooks.router)
 
