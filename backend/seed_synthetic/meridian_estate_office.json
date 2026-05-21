@@ -1,0 +1,122 @@
+{
+  "_meta": {
+    "sid": 103,
+    "is_demo": 1,
+    "vertical": "office_estate",
+    "description": "Meridian Estate Office — demo commercial office estate. 2 towers, 20 floors total, ~140 suites housing different corporate tenants. Doubles as an onboarding template for any commercial office park or business hub.",
+    "design_notes": [
+      "Complainants in this vertical are USERS of suites — i.e. employees of the tenant companies. They report problems in their suite or in common areas (lifts, cafeteria, washroom, parking). The user-identity model is different from residential: a tenant company occupies a suite, employees-within-tenant file complaints.",
+      "For seeder simplicity we treat each suite as a 'unit' (mapped into the existing `units` table). The owner field on a unit stores the TENANT COMPANY name, not an individual.",
+      "Common-area complaints (lift, washroom, lobby) carry the suite-of-reporting-user as the unit, with the category indicating it's common-area."
+    ]
+  },
+  "society": {
+    "name": "Meridian Estate Office",
+    "address": "Meridian Business Park, Salt Lake Sector V, Kolkata 700091",
+    "timezone": "Asia/Kolkata",
+    "buildings": 2,
+    "total_suites": 140
+  },
+  "structure": {
+    "buildings": [
+      {"id": "B1", "name": "North Tower",  "floors": 10, "suites_per_floor": 7},
+      {"id": "B2", "name": "South Tower",  "floors": 10, "suites_per_floor": 7}
+    ],
+    "unit_naming_pattern": "{building_id}-F{floor}-S{suite}  (e.g. B1-F03-S15 = North Tower, 3rd floor, suite 15)",
+    "common_areas": [
+      "B1-Lobby", "B2-Lobby",
+      "B1-Cafeteria", "B2-Cafeteria",
+      "B1-Lift-1", "B1-Lift-2", "B2-Lift-1", "B2-Lift-2",
+      "B1-Washroom-M-{floor}", "B1-Washroom-F-{floor}",
+      "B2-Washroom-M-{floor}", "B2-Washroom-F-{floor}",
+      "Basement-Parking-A", "Basement-Parking-B",
+      "Rooftop-Conference",
+      "Reception-Main"
+    ],
+    "units_to_seed": 60
+  },
+  "categories": [
+    {"name": "HVAC",                        "priority_default": "normal", "common": true},
+    {"name": "IT / Network",                "priority_default": "high",   "common": true},
+    {"name": "Lift",                        "priority_default": "high",   "common": true},
+    {"name": "Security",                    "priority_default": "high",   "common": true},
+    {"name": "Washroom",                    "priority_default": "normal", "common": true},
+    {"name": "Pantry / Cafeteria",          "priority_default": "normal", "common": true},
+    {"name": "Cleanliness — Common Area",   "priority_default": "normal", "common": true},
+    {"name": "Cleanliness — Suite",         "priority_default": "low",    "common": true},
+    {"name": "Meeting Room Booking",        "priority_default": "low",    "common": true},
+    {"name": "Parking",                     "priority_default": "normal", "common": true},
+    {"name": "Power Outage",                "priority_default": "urgent", "common": false},
+    {"name": "Plumbing",                    "priority_default": "normal", "common": true},
+    {"name": "Electrical — Suite",          "priority_default": "normal", "common": true},
+    {"name": "Pest Control",                "priority_default": "normal", "common": false},
+    {"name": "Reception / Visitor Mgmt",    "priority_default": "low",    "common": true},
+    {"name": "Card Access / Door",          "priority_default": "high",   "common": true},
+    {"name": "Building Maintenance",        "priority_default": "low",    "common": false},
+    {"name": "Cafeteria Food Quality",      "priority_default": "high",   "common": true},
+    {"name": "Conference Room AV",          "priority_default": "high",   "common": true},
+    {"name": "Fire Safety",                 "priority_default": "urgent", "common": false},
+    {"name": "Signage / Wayfinding",        "priority_default": "low",    "common": false},
+    {"name": "Other",                       "priority_default": "low",    "common": true}
+  ],
+  "staff_roles": [
+    {"role_key": "ceo",                   "title": "CEO (Property Co)",       "count": 1, "in_chain": true,  "chain_level": 4},
+    {"role_key": "estate_director",       "title": "Estate Director",         "count": 1, "in_chain": true,  "chain_level": 3},
+    {"role_key": "operations_manager",    "title": "Operations Manager",      "count": 1, "in_chain": true,  "chain_level": 2},
+    {"role_key": "facility_manager",      "title": "Facility Manager",        "count": 1, "in_chain": true,  "chain_level": 1},
+    {"role_key": "sr_facility_manager",   "title": "Sr. Facility Manager",    "count": 1, "in_chain": false},
+    {"role_key": "helpdesk_supervisor",   "title": "Helpdesk Supervisor",     "count": 1, "in_chain": false, "category_specialty": "IT / Network"},
+    {"role_key": "helpdesk_agent",        "title": "Helpdesk Agent",          "count": 2, "in_chain": false, "category_specialty": "IT / Network"},
+    {"role_key": "security_supervisor",   "title": "Security Supervisor",     "count": 1, "in_chain": false, "category_specialty": "Security"},
+    {"role_key": "security_guard",        "title": "Security Guard",          "count": 3, "in_chain": false, "category_specialty": "Security"},
+    {"role_key": "hvac_technician",       "title": "HVAC Technician",         "count": 1, "in_chain": false, "category_specialty": "HVAC"},
+    {"role_key": "electrician_inhouse",   "title": "In-House Electrician",    "count": 1, "in_chain": false, "category_specialty": "Electrical — Suite"},
+    {"role_key": "plumber_inhouse",       "title": "In-House Plumber",        "count": 1, "in_chain": false, "category_specialty": "Plumbing"},
+    {"role_key": "housekeeping_supervisor","title": "Housekeeping Supervisor","count": 1, "in_chain": false, "category_specialty": "Cleanliness — Common Area"},
+    {"role_key": "housekeeper",           "title": "Housekeeper",             "count": 3, "in_chain": false, "category_specialty": "Cleanliness — Common Area"}
+  ],
+  "churn_seeds": {
+    "_note": "Office estates have steady-state churn — a helpdesk agent who left holding open IT tickets, a security guard rotated to another property mid-shift. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left.",
+    "deactivated_staff": [
+      {"role_key": "helpdesk_agent",      "name_hint": "Departed helpdesk agent", "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "resigned 2026-04-30 — left a Card-Access ticket already at facility_manager"},
+      {"role_key": "housekeeper",         "name_hint": "Departed housekeeper",    "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "rotated to sister property 2026-05-05"},
+      {"role_key": "security_guard",      "name_hint": "Departed guard #1",       "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "terminated 2026-05-12 — left a Security incident at south-tower lobby already escalated to operations_manager"}
+    ],
+    "retired_contractor": {"category": "Lift", "vendor_name": "OldLift AMC Services (contract ended)", "holds_open_jobs_at_retirement": 1, "highest_open_priority": "high", "reason": "contract not renewed 2026-04-25"}
+  },
+  "escalation_chain": [
+    {"level": 1, "role_key": "facility_manager"},
+    {"level": 2, "role_key": "operations_manager"},
+    {"level": 3, "role_key": "estate_director"},
+    {"level": 4, "role_key": "ceo"}
+  ],
+  "sla_config": {
+    "_note": "Ultra-short demo SLAs. Office estates typically have working-hours-only SLAs in production — out-of-hours complaints queue until morning unless safety-critical.",
+    "default": {
+      "target_response_time_minutes": 1,
+      "target_resolution_time_hours": 0.05,
+      "priority_high_multiplier": 0.5,
+      "escalation_levels": {
+        "1": {"after_hours": 0.033, "notify": "facility_manager"},
+        "2": {"after_hours": 0.066, "notify": "operations_manager"},
+        "3": {"after_hours": 0.1,   "notify": "estate_director"}
+      }
+    },
+    "overrides": {
+      "Fire Safety":      {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.008},
+      "Power Outage":     {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Card Access / Door":{"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Lift":             {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.025}
+    }
+  },
+  "contractor_specialties": [
+    {"category": "HVAC",                "vendor_name": "ChillTech Commercial HVAC",  "rating": 4.4, "count": 1},
+    {"category": "IT / Network",        "vendor_name": "NetGrid IT Services",        "rating": 4.5, "count": 1},
+    {"category": "Lift",                "vendor_name": "OtisCare AMC",               "rating": 4.7, "count": 1},
+    {"category": "Pest Control",        "vendor_name": "PestAway Commercial",        "rating": 4.0, "count": 1},
+    {"category": "Cafeteria Food Quality","vendor_name": "FreshBite Cafeteria Ops",  "rating": 3.9, "count": 1},
+    {"category": "Security",            "vendor_name": "SafeGuard Security Agency",  "rating": 4.3, "count": 1},
+    {"category": "Fire Safety",         "vendor_name": "FireShield AMC",             "rating": 4.6, "count": 1},
+    {"category": "Conference Room AV",  "vendor_name": "BoardroomAV Solutions",      "rating": 4.2, "count": 1}
+  ]
+}

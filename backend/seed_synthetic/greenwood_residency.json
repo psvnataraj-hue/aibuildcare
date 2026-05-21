@@ -1,0 +1,117 @@
+{
+  "_meta": {
+    "sid": 100,
+    "is_demo": 1,
+    "vertical": "residential_society",
+    "description": "Greenwood Residency — demo housing society. 4 towers, 192 units. Doubles as an onboarding template for a real residential society.",
+    "design_notes": [
+      "Mirrors Palms Residency shape (sid=1) — same staff roles, same escalation chain, same 25-category set — so this demo exercises the housing-society code path identically.",
+      "Demo SLAs are ultra-short (L1=2min, L2=4min, L3=6min) per Part 0-C. To use this file as a real-society template, raise SLAs to hours and set is_demo=0.",
+      "Parking-specific data lives in parking_scenario.json (overlays this society)."
+    ]
+  },
+  "society": {
+    "name": "Greenwood Residency",
+    "address": "100 Greenwood Avenue, Sector 7, Pune 411045",
+    "timezone": "Asia/Kolkata",
+    "amenities": ["clubhouse", "swimming_pool", "gym", "children_play_area", "garden", "basement_parking"]
+  },
+  "structure": {
+    "towers": [
+      {"id": "A", "name": "Tower A — Banyan", "floors": 12, "units_per_floor": 4},
+      {"id": "B", "name": "Tower B — Cedar",  "floors": 12, "units_per_floor": 4},
+      {"id": "C", "name": "Tower C — Deodar", "floors": 12, "units_per_floor": 4},
+      {"id": "D", "name": "Tower D — Ebony",  "floors": 12, "units_per_floor": 4}
+    ],
+    "unit_naming_pattern": "{tower_id}-{floor}{unit_letter}  (e.g. A-5B = Tower A, 5th floor, unit B)",
+    "total_units": 192,
+    "units_to_seed": 50
+  },
+  "categories": [
+    {"name": "Fire Safety",            "priority_default": "urgent", "common": false},
+    {"name": "Security",               "priority_default": "high",   "common": true},
+    {"name": "Elevator",               "priority_default": "high",   "common": true},
+    {"name": "Generator/Power Backup", "priority_default": "high",   "common": false},
+    {"name": "Electrical",             "priority_default": "normal", "common": true},
+    {"name": "Plumbing",               "priority_default": "normal", "common": true},
+    {"name": "AC/Cooling",             "priority_default": "normal", "common": true},
+    {"name": "Water Supply",           "priority_default": "high",   "common": true},
+    {"name": "Sewage/Drainage",        "priority_default": "high",   "common": true},
+    {"name": "Lighting",               "priority_default": "normal", "common": true},
+    {"name": "Housekeeping",           "priority_default": "low",    "common": true},
+    {"name": "Garbage/Waste",          "priority_default": "normal", "common": true},
+    {"name": "Pest Control",           "priority_default": "normal", "common": true},
+    {"name": "Gardening",              "priority_default": "low",    "common": false},
+    {"name": "Carpentry",              "priority_default": "low",    "common": false},
+    {"name": "Painting",               "priority_default": "low",    "common": false},
+    {"name": "Civil/Structural",       "priority_default": "normal", "common": false},
+    {"name": "CCTV/Intercom",          "priority_default": "normal", "common": false},
+    {"name": "Swimming Pool",          "priority_default": "normal", "common": false},
+    {"name": "Sports/Gym/Clubhouse",   "priority_default": "low",    "common": false},
+    {"name": "Children's Play Area",   "priority_default": "normal", "common": false},
+    {"name": "Parking Management",     "priority_default": "normal", "common": true},
+    {"name": "Noise/Visitor",          "priority_default": "normal", "common": true},
+    {"name": "Other",                  "priority_default": "low",    "common": true}
+  ],
+  "staff_roles": [
+    {"role_key": "chairman",              "title": "Chairman",              "count": 1,  "in_chain": true,  "chain_level": 4},
+    {"role_key": "secretary",             "title": "Secretary",             "count": 1,  "in_chain": true,  "chain_level": 3},
+    {"role_key": "sr_manager",            "title": "Senior Estate Manager", "count": 1,  "in_chain": true,  "chain_level": 2},
+    {"role_key": "manager",               "title": "Estate Manager",        "count": 1,  "in_chain": true,  "chain_level": 1},
+    {"role_key": "committee_member",      "title": "Committee Member",      "count": 3,  "in_chain": false},
+    {"role_key": "security_supervisor",   "title": "Security Supervisor",   "count": 1,  "in_chain": false, "category_specialty": "Security"},
+    {"role_key": "security_guard",        "title": "Security Guard",        "count": 3,  "in_chain": false, "category_specialty": "Security"},
+    {"role_key": "housekeeping_supervisor","title": "Housekeeping Supervisor","count": 1, "in_chain": false, "category_specialty": "Housekeeping"},
+    {"role_key": "housekeeper",           "title": "Housekeeper",           "count": 2,  "in_chain": false, "category_specialty": "Housekeeping"},
+    {"role_key": "gardener",              "title": "Gardener",              "count": 1,  "in_chain": false, "category_specialty": "Gardening"},
+    {"role_key": "plumber_inhouse",       "title": "In-House Plumber",      "count": 1,  "in_chain": false, "category_specialty": "Plumbing"},
+    {"role_key": "electrician_inhouse",   "title": "In-House Electrician",  "count": 1,  "in_chain": false, "category_specialty": "Electrical"},
+    {"role_key": "lift_operator",         "title": "Lift Operator",         "count": 1,  "in_chain": false, "category_specialty": "Elevator"},
+    {"role_key": "receptionist",          "title": "Receptionist",          "count": 1,  "in_chain": false}
+  ],
+  "churn_seeds": {
+    "_note": "Part 0-E — deliberately seed lifecycle cases so the orphan-work gap is visible in the walkthrough report. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left.",
+    "deactivated_staff": [
+      {"role_key": "plumber_inhouse",     "name_hint": "Departed plumber #1",     "holds_open_complaints_at_deactivation": 3, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "resigned 2026-04-15 — left with a Sewage/Drainage ticket already escalated to manager"},
+      {"role_key": "security_guard",      "name_hint": "Departed guard #1",       "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "terminated 2026-05-02"},
+      {"role_key": "electrician_inhouse", "name_hint": "Departed electrician #1", "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "moved to another society 2026-04-28 — Tower-C wiring ticket already at sr_manager"}
+    ],
+    "retired_contractor": {"category": "AC/Cooling", "vendor_name": "ChillRight Services (retired)", "holds_open_jobs_at_retirement": 2, "highest_open_priority": "high", "reason": "company shutdown 2026-04-20"}
+  },
+  "escalation_chain": [
+    {"level": 1, "role_key": "manager"},
+    {"level": 2, "role_key": "sr_manager"},
+    {"level": 3, "role_key": "secretary"},
+    {"level": 4, "role_key": "chairman"}
+  ],
+  "sla_config": {
+    "_note": "Ultra-short demo SLAs (Part 0-C). Real tenant onboarding would replace with realistic hours-long thresholds.",
+    "default": {
+      "target_response_time_minutes": 1,
+      "target_resolution_time_hours": 0.05,
+      "priority_high_multiplier": 0.5,
+      "escalation_levels": {
+        "1": {"after_hours": 0.033, "notify": "manager"},
+        "2": {"after_hours": 0.066, "notify": "sr_manager"},
+        "3": {"after_hours": 0.1,   "notify": "secretary"}
+      }
+    },
+    "overrides": {
+      "Fire Safety": {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Security":    {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.025},
+      "Elevator":    {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.025}
+    }
+  },
+  "contractor_specialties": [
+    {"category": "AC/Cooling",         "vendor_name": "GreenCool Services",          "rating": 4.5, "count": 1},
+    {"category": "Plumbing",           "vendor_name": "AquaPro Greenwood",           "rating": 4.2, "count": 1},
+    {"category": "Electrical",         "vendor_name": "VoltMaster Pune",             "rating": 4.4, "count": 1},
+    {"category": "Elevator",           "vendor_name": "LiftCare AMC (Otis)",         "rating": 4.7, "count": 1},
+    {"category": "Pest Control",       "vendor_name": "PestAway Sector-7",           "rating": 4.0, "count": 1},
+    {"category": "Painting",           "vendor_name": "Brushworks Painters",         "rating": 3.8, "count": 1},
+    {"category": "Carpentry",          "vendor_name": "TeakWood Carpentry",          "rating": 4.1, "count": 1},
+    {"category": "Civil/Structural",   "vendor_name": "BuildRight Civil Contractors","rating": 4.3, "count": 1},
+    {"category": "Gardening",          "vendor_name": "GreenThumb Landscaping",      "rating": 4.0, "count": 1},
+    {"category": "CCTV/Intercom",      "vendor_name": "SecureView Systems",          "rating": 4.2, "count": 1}
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "_meta": {
+    "sid": 103,
+    "is_demo": 1,
+    "overlay_on": "meridian_estate_office.json",
+    "description": "Parking scenario overlay for Meridian Estate Office (sid=103). Provides slot inventory across both basements, registered vehicles by tenant suite, violation type catalog, and DETERMINISTIC repeat-offender plates. Office-estate parking differs structurally from residential parking: slots are allocated per TENANT COMPANY (not per individual), turnover is much higher (employees, visitors, courier drivers, cab drop-offs), and 'wrong-tenant slot' is the dominant violation type.",
+    "design_notes": [
+      "Differences vs Greenwood (residential) parking:",
+      "  - Slot allocations are per-suite (tenant company), not per-individual. A suite may allocate its slots to any of its employees; the platform does NOT track employee-vehicle mappings within a tenant.",
+      "  - Visitor slot duration is SHORTER (90 min) — office visitors are typically meeting attendees, not residential guests.",
+      "  - 'wrong_tenant_slot' is the most common violation: an employee of Tenant-A parks in a slot allocated to Tenant-B.",
+      "  - Cab drop-off / pick-up zones have their own etiquette (60 sec stop max, no parking).",
+      "  - No overnight residential parking — building closes at 23:00 to public access; any vehicle remaining after 23:00 is 'after_hours_unauthorized'.",
+      "All vehicle plates use the Indian format STATE-DISTRICT-LETTERS-NUMBERS. Plates for tenant-company-registered vehicles use realistic letter sequences; repeat-offender plates use ZZ/XX/ZX letters for at-a-glance identification.",
+      "All owner phones use the reserved test-phone range +9199000XXXXX per Part 0-B Layer 2."
+    ]
+  },
+  "slot_inventory": {
+    "basement_A_north_tower": {
+      "slots": "B1-A-001 to B1-A-080",
+      "type": "tenant_allocated",
+      "allocation_rule": "tenant suites in North Tower get 1-3 slots each based on suite size + lease terms",
+      "_note": "Largest tenants (e.g. anchor floors) get 3-4 slots; small suites get 1; some suites get zero."
+    },
+    "basement_B_south_tower": {
+      "slots": "B2-B-001 to B2-B-080",
+      "type": "tenant_allocated",
+      "allocation_rule": "same scheme, South Tower tenants"
+    },
+    "visitor": {
+      "slots": "V-001 to V-016",
+      "type": "visitor",
+      "rules": "max 90 min; expired_visitor violation after 90 min; visitor must be registered at reception"
+    },
+    "ev_charging": {
+      "slots": "EV-001 to EV-006",
+      "type": "ev_only",
+      "rules": "EV vehicles only with active charging session"
+    },
+    "fire_lane": {
+      "slots": "FL-MARKED (perimeter + tower bases)",
+      "type": "no_parking",
+      "rules": "any vehicle stationary here = fire_lane violation, immediate clamping eligibility"
+    },
+    "handicap": {
+      "slots": "HP-001 to HP-004",
+      "type": "handicap_only",
+      "rules": "non-permit holder parked here = hp_lane_misuse violation"
+    },
+    "executive_reserved": {
+      "slots": "EXEC-001 to EXEC-006",
+      "type": "reserved",
+      "rules": "reserved for property-co directors + named tenant CEOs by agreement",
+      "_note": "Configurable per onboarding — this is the kind of slot type that doesn't exist in residential parking."
+    },
+    "cab_dropoff": {
+      "slots": "DROP-001 to DROP-004 (front of each tower)",
+      "type": "stop_only",
+      "rules": "60-second stop max; no parking; loitering vehicle = cab_zone_loiter violation"
+    }
+  },
+  "violation_types": [
+    {"key": "wrong_tenant_slot",       "severity": "normal", "auto_clamp_eligible": false, "description": "Vehicle of one tenant company parked in another tenant's allocated slot"},
+    {"key": "blocking_exit",           "severity": "high",   "auto_clamp_eligible": true,  "description": "Vehicle blocks basement exit ramp or tower egress"},
+    {"key": "expired_visitor",         "severity": "normal", "auto_clamp_eligible": false, "description": "Visitor vehicle exceeded 90-minute limit"},
+    {"key": "after_hours_unauthorized","severity": "high",   "auto_clamp_eligible": true,  "description": "Non-registered vehicle remaining in basement after 23:00 closure"},
+    {"key": "fire_lane",               "severity": "urgent", "auto_clamp_eligible": true,  "description": "Vehicle in marked fire lane — immediate clamping authorized"},
+    {"key": "hp_lane_misuse",          "severity": "high",   "auto_clamp_eligible": true,  "description": "Non-permit vehicle in handicap slot"},
+    {"key": "ev_lane_misuse",          "severity": "low",    "auto_clamp_eligible": false, "description": "ICE vehicle in EV-charging slot, or EV not actively charging"},
+    {"key": "exec_slot_misuse",        "severity": "normal", "auto_clamp_eligible": false, "description": "Unauthorized vehicle in EXEC-reserved slot"},
+    {"key": "cab_zone_loiter",         "severity": "low",    "auto_clamp_eligible": false, "description": "Vehicle parked / loitering in cab drop-off zone beyond 60-second stop"},
+    {"key": "noise_horn",              "severity": "low",    "auto_clamp_eligible": false, "description": "Persistent horn use in basement"}
+  ],
+  "registered_vehicles_to_seed": {
+    "_note": "Office parking has much higher vehicle count than residential — many tenants have multiple registered employee vehicles. The seeder will produce vehicles linked to TENANT COMPANY names (stored in vehicles.owner_name as the company), with the suite as unit_number. No individual employee mapping inside this platform.",
+    "total_vehicles": 80,
+    "by_type": {
+      "car_sedan":      32,
+      "car_suv":        18,
+      "car_hatchback":  16,
+      "two_wheeler":     8,
+      "ev_car":          4,
+      "courier_van":     2
+    },
+    "distribution": "uneven by tenant — anchor tenants (3 suites combined) register ~10 vehicles each; small single-suite tenants register 1-3"
+  },
+  "deterministic_repeat_offender_plates": {
+    "_note": "Four office-specific repeat-offender plates. Note one is a cab-zone-loiter offender (Ola/Uber driver) and one is a wrong-tenant-slot offender — the two most common office parking issues that don't exist in residential.",
+    "plates": [
+      {
+        "plate": "WB-02-ZZ-0101",
+        "owner_tenant_suite": "B1-F05-S11",
+        "owner_tenant_company": "Stratus Analytics Pvt Ltd",
+        "owner_phone": "+919900000401",
+        "vehicle_type": "car_suv",
+        "violations_seeded": [
+          {"days_ago": 26, "type": "wrong_tenant_slot",      "status": "resolved"},
+          {"days_ago": 17, "type": "wrong_tenant_slot",      "status": "resolved"},
+          {"days_ago":  4, "type": "wrong_tenant_slot",      "status": "resolved", "_note": "★ 3rd violation in 30 days → 5th-major-incident flag"}
+        ],
+        "expected_system_behavior": "should appear in 'repeat offenders' admin view; demonstrates office-specific wrong_tenant_slot pattern"
+      },
+      {
+        "plate": "WB-02-XX-0207",
+        "owner_tenant_suite": "B2-F08-S03",
+        "owner_tenant_company": "Northwind Logistics LLP",
+        "owner_phone": "+919900000407",
+        "vehicle_type": "car_sedan",
+        "violations_seeded": [
+          {"days_ago": 24, "type": "after_hours_unauthorized", "status": "resolved"},
+          {"days_ago": 13, "type": "after_hours_unauthorized", "status": "resolved"},
+          {"days_ago":  7, "type": "fire_lane",                "status": "resolved", "clamping_authorized": true, "_note": "Fire lane = auto-clamp-eligible"}
+        ],
+        "expected_system_behavior": "demonstrates office after-hours pattern + clamping authorization audit trail; clamped=1 in vehicles table"
+      },
+      {
+        "plate": "WB-02-ZX-0313",
+        "owner_tenant_suite": "CAB-DRIVER",
+        "owner_tenant_company": "Independent cab driver (Ola partner)",
+        "owner_phone": "+919900001313",
+        "vehicle_type": "car_sedan",
+        "violations_seeded": [
+          {"days_ago": 21, "type": "cab_zone_loiter",  "status": "resolved"},
+          {"days_ago": 15, "type": "cab_zone_loiter",  "status": "resolved"},
+          {"days_ago":  9, "type": "cab_zone_loiter",  "status": "resolved"},
+          {"days_ago":  2, "type": "expired_visitor",  "status": "resolved", "_note": "Driver moved to visitor slot to wait — also expired"}
+        ],
+        "expected_system_behavior": "demonstrates non-tenant repeat offender; 4 violations in 30 days well over 5th-major-incident threshold"
+      },
+      {
+        "plate": "WB-02-ZZ-0419",
+        "owner_tenant_suite": "VISITOR",
+        "owner_tenant_company": "Visitor (no tenant link)",
+        "owner_phone": "+919900001419",
+        "vehicle_type": "car_hatchback",
+        "violations_seeded": [
+          {"days_ago": 19, "type": "expired_visitor",  "status": "resolved"},
+          {"days_ago":  8, "type": "expired_visitor",  "status": "resolved"},
+          {"days_ago":  3, "type": "exec_slot_misuse", "status": "resolved"}
+        ],
+        "expected_system_behavior": "demonstrates visitor-class repeat offender escalating to exec-slot misuse"
+      }
+    ]
+  },
+  "live_test_plates": {
+    "_note": "Reserved for the tester to use during live testing. Cron WILL fire for these.",
+    "plates_reserved_for_live_testing": [
+      {"plate": "WB-02-TT-0001", "purpose": "Single-violation happy-path test"},
+      {"plate": "WB-02-TT-0002", "purpose": "Repeat-offender escalation test — file 3 wrong_tenant_slot complaints in quick succession"},
+      {"plate": "WB-02-TT-0003", "purpose": "Fire-lane auto-clamp test"}
+    ]
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "_meta": {
+    "description": "Tester + operator accounts for demo tenants. NO admin role used on demos per audit finding (admin has cross-tenant reach via /analytics, /contractors, /admin/permissions). All accounts use society-scoped non-admin roles.",
+    "password_env_var": "AIBUILDCARE_TESTER_PASSWORD",
+    "password_handling": "Seeder Part 6 reads the env var at apply time, bcrypts it, and inserts. Same password reused across all tester accounts for demo simplicity.",
+    "out_of_scope_by_design": "Sravya never gets an account on sid=1 (Palms). Nataraj's real Palms admin account is unchanged by this seeding.",
+    "reserved_live_resident_slots_note": "See `reserved_live_resident_slots` below. Mirrors the live_test_plates pattern from parking configs — slots are RESERVED, not seeded, until real phone numbers are provided. When filled, the corresponding residents are added to Greenwood with their REAL phones (not test-range phones); cron then fires for them correctly."
+  },
+  "accounts": [
+    {
+      "email": "sravya.resident@aibuildcare.app",
+      "society_id": 100,
+      "society_name": "Greenwood Residency",
+      "role": "resident",
+      "purpose": "TESTER — files complaints from end-user perspective",
+      "unit_number": "D-1B",
+      "phone": "+919900000001",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.resident@aibuildcare.app",
+      "society_id": 101,
+      "society_name": "Sunrise Nursing Home",
+      "role": "resident",
+      "purpose": "TESTER — files complaints from end-user perspective",
+      "unit_number": "C-REC",
+      "phone": "+919900000001",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.resident@aibuildcare.app",
+      "society_id": 102,
+      "society_name": "Stellar Events",
+      "role": "resident",
+      "purpose": "TESTER — files complaints from end-user perspective",
+      "unit_number": "EVT-2026-05-25-Wedding-Worli",
+      "phone": "+919900000001",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.resident@aibuildcare.app",
+      "society_id": 103,
+      "society_name": "Meridian Estate Office",
+      "role": "resident",
+      "purpose": "TESTER — files complaints from end-user perspective",
+      "unit_number": "B1-F09-S07",
+      "phone": "+919900000001",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.ops@aibuildcare.app",
+      "society_id": 100,
+      "society_name": "Greenwood Residency",
+      "role": "secretary",
+      "purpose": "TESTER — operator view; can assign, resolve, escalate, authorize enforcement",
+      "unit_number": null,
+      "phone": "+919900000002",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.ops@aibuildcare.app",
+      "society_id": 101,
+      "society_name": "Sunrise Nursing Home",
+      "role": "secretary",
+      "purpose": "TESTER — operator view; can assign, resolve, escalate, authorize enforcement",
+      "unit_number": null,
+      "phone": "+919900000002",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.ops@aibuildcare.app",
+      "society_id": 102,
+      "society_name": "Stellar Events",
+      "role": "secretary",
+      "purpose": "TESTER — operator view; can assign, resolve, escalate, authorize enforcement",
+      "unit_number": null,
+      "phone": "+919900000002",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "sravya.ops@aibuildcare.app",
+      "society_id": 103,
+      "society_name": "Meridian Estate Office",
+      "role": "secretary",
+      "purpose": "TESTER — operator view; can assign, resolve, escalate, authorize enforcement",
+      "unit_number": null,
+      "phone": "+919900000002",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "nataraj.ops@aibuildcare.app",
+      "society_id": 100,
+      "society_name": "Greenwood Residency",
+      "role": "secretary",
+      "purpose": "OPERATOR — Nataraj per-demo login (NOT the Palms admin); scoped to this demo tenant only",
+      "unit_number": null,
+      "phone": "+919900000003",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "nataraj.ops@aibuildcare.app",
+      "society_id": 101,
+      "society_name": "Sunrise Nursing Home",
+      "role": "secretary",
+      "purpose": "OPERATOR — Nataraj per-demo login (NOT the Palms admin); scoped to this demo tenant only",
+      "unit_number": null,
+      "phone": "+919900000003",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "nataraj.ops@aibuildcare.app",
+      "society_id": 102,
+      "society_name": "Stellar Events",
+      "role": "secretary",
+      "purpose": "OPERATOR — Nataraj per-demo login (NOT the Palms admin); scoped to this demo tenant only",
+      "unit_number": null,
+      "phone": "+919900000003",
+      "active": 1,
+      "is_test_account": true
+    },
+    {
+      "email": "nataraj.ops@aibuildcare.app",
+      "society_id": 103,
+      "society_name": "Meridian Estate Office",
+      "role": "secretary",
+      "purpose": "OPERATOR — Nataraj per-demo login (NOT the Palms admin); scoped to this demo tenant only",
+      "unit_number": null,
+      "phone": "+919900000003",
+      "active": 1,
+      "is_test_account": true
+    }
+  ],
+  "reserved_live_resident_slots": [
+    {
+      "reservation_id": "sravya-primary-live",
+      "society_id": 100,
+      "society_name": "Greenwood Residency",
+      "role": "resident",
+      "target_unit_hint": "A-4A or any unoccupied Tower-A unit",
+      "phone_to_add": null,
+      "name_to_add": null,
+      "purpose": "Sravya's REAL WhatsApp number — primary live tester phone. When provided, she becomes a recognized Greenwood resident filing complaints from her actual phone. Cron WILL fire (phone outside the +91 99000 test range, no TEST_PHONE_SKIPPED short-circuit).",
+      "notes": "Awaiting Nataraj's confirmation of phone availability. Until provided, this slot is unfilled and the seeder skips it."
+    },
+    {
+      "reservation_id": "sravya-secondary-live",
+      "society_id": 100,
+      "society_name": "Greenwood Residency",
+      "role": "resident",
+      "target_unit_hint": "Same unit as sravya-primary-live (multi-occupant household)",
+      "phone_to_add": null,
+      "name_to_add": null,
+      "purpose": "Optional second live tester phone (e.g., Sravya's spouse). Simulates a multi-person household where two people in the same unit can file complaints. Same cron-fires behaviour.",
+      "notes": "OPTIONAL. Only filled if a second real phone is provided."
+    }
+  ]
+}
