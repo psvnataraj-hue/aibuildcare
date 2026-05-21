@@ -82,6 +82,19 @@ STATUS_FLOW = [
 
 ACK_TICK = "\u2705"
 
+# P2: violation types accepted on parking complaints. Whitelist kept
+# in code (not DB) so adding a new type is a one-line PR + tests.
+PARKING_CATEGORY = "Parking Management"
+VIOLATION_TYPES = {
+    "no_parking_zone",
+    "blocking_fire_exit",
+    "double_parked",
+    "expired_permit",
+    "unauthorized_visitor",
+    "wrong_slot",
+    "other",
+}
+
 
 class ComplaintError(Exception):
     pass
@@ -130,6 +143,8 @@ def create_complaint(
     reporter_email: str | None = None,
     image_urls: list[str] | None = None,
     society_id: int | None = None,
+    vehicle_plate: str | None = None,
+    violation_type: str | None = None,
 ) -> dict:
     parsed = parse_complaint(raw_text, image_urls)
     media = ",".join(image_urls) if image_urls else None
@@ -174,6 +189,70 @@ def create_complaint(
             "VALUES (?,?,?)",
             (cid, "system", ack),
         )
+        # --- P2: parking auto-link. When this is a Parking Management
+        # complaint with a plate, normalise the plate, look up the
+        # vehicle row in this society, and link by vehicle_id. The
+        # owner-notify side-effect is queued for after-commit so a
+        # WhatsApp failure can't rollback the ticket.
+        parking_owner_notify: dict | None = None
+        if parsed.category == PARKING_CATEGORY and vehicle_plate:
+            from .vehicles_service import (
+                _validate_plate, find_by_plate, VehiclesError,
+            )
+
+            try:
+                norm_plate = _validate_plate(vehicle_plate)
+            except VehiclesError:
+                norm_plate = None
+            if violation_type and violation_type not in VIOLATION_TYPES:
+                raise ComplaintError(
+                    f"violation_type must be one of "
+                    f"{sorted(VIOLATION_TYPES)}"
+                )
+            vehicle = (
+                find_by_plate(sid, norm_plate) if norm_plate else None
+            )
+            conn.execute(
+                "UPDATE complaints SET vehicle_plate = ?, "
+                "vehicle_id = ?, violation_type = ? WHERE id = ?",
+                (
+                    norm_plate, vehicle["id"] if vehicle else None,
+                    violation_type, cid,
+                ),
+            )
+            if vehicle and vehicle.get("owner_phone"):
+                parking_owner_notify = {
+                    "phone": vehicle["owner_phone"],
+                    "name": vehicle.get("owner_name") or "Owner",
+                    "unit": vehicle.get("owner_unit_number"),
+                    "plate": norm_plate,
+                    "violation": violation_type or "parking violation",
+                    "ticket": ticket,
+                }
+            elif vehicle:
+                # linked but no phone — log to the message thread so
+                # staff sees the link succeeded
+                conn.execute(
+                    "INSERT INTO complaint_messages "
+                    "(complaint_id, sender, body) VALUES (?,?,?)",
+                    (
+                        cid, "system",
+                        f"Linked to vehicle {norm_plate} "
+                        f"(owner: {vehicle.get('owner_name') or 'unknown'}, "
+                        f"unit {vehicle.get('owner_unit_number') or '?'}). "
+                        f"No phone on file — could not notify owner.",
+                    ),
+                )
+            elif norm_plate:
+                conn.execute(
+                    "INSERT INTO complaint_messages "
+                    "(complaint_id, sender, body) VALUES (?,?,?)",
+                    (
+                        cid, "system",
+                        f"Plate {norm_plate} not in vehicle registry. "
+                        f"Add via /vehicles to enable owner notifications.",
+                    ),
+                )
         # --- E1b: society + category-aware routing (staff → contractor)
         from ..config import get_settings
         from .routing_service import find_assignee
@@ -237,6 +316,20 @@ def create_complaint(
             f"{result.get('unit_number') or '?'}, "
             f"{result.get('category')} ({result['ticket_number']}). "
             f"Status: Assigned.",
+        )
+    # P2: notify the parking-violation owner after the commit so a
+    # WhatsApp failure can't roll back the ticket.
+    if parking_owner_notify:
+        from .notify import send_whatsapp
+
+        n = parking_owner_notify
+        unit_str = f" (flat {n['unit']})" if n["unit"] else ""
+        send_whatsapp(
+            n["phone"],
+            f"{ACK_TICK} Your vehicle {n['plate']}{unit_str} has been "
+            f"reported for {n['violation'].replace('_', ' ')}. "
+            f"Ticket {n['ticket']}. Society management will be in "
+            f"touch shortly.",
         )
     return result
 
@@ -393,6 +486,80 @@ def update_status(
             "WHERE c.id = ?", (cid,)
         ).fetchone()
         return _row_to_dict(out)
+
+
+def authorize_clamping(
+    cid: int, authorizing_user_id: int,
+    society_id: int | None = None,
+) -> dict:
+    """P4: mark a parking complaint as clamped, attribute the action,
+    and notify the linked vehicle's owner.
+
+    Idempotent: if the complaint is already clamped, returns the
+    current row without changing clamped_at or clamping_authorized_by
+    (preserves the original authorising user).
+    """
+    with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        row = conn.execute(
+            "SELECT * FROM complaints WHERE id = ? AND society_id = ?",
+            (cid, sid),
+        ).fetchone()
+        if not row:
+            raise ComplaintError("complaint not found")
+        existing = dict(row)
+        if existing.get("clamped"):
+            # idempotent no-op — return current state, do not re-notify
+            return _row_to_dict(row)
+        conn.execute(
+            "UPDATE complaints SET clamped = 1, clamped_at = ?, "
+            "clamping_authorized_by = ?, updated_at = ? "
+            "WHERE id = ? AND society_id = ?",
+            (_now(), authorizing_user_id, _now(), cid, sid),
+        )
+        conn.execute(
+            "INSERT INTO complaint_messages (complaint_id, sender, body) "
+            "VALUES (?,?,?)",
+            (
+                cid, "system",
+                f"Clamping authorized by user #{authorizing_user_id}.",
+            ),
+        )
+        # gather owner phone for after-commit notify
+        owner_phone = None
+        owner_unit = None
+        plate = existing.get("vehicle_plate")
+        vid = existing.get("vehicle_id")
+        if vid:
+            v = conn.execute(
+                "SELECT owner_phone, owner_unit_number FROM vehicles "
+                "WHERE id = ? AND society_id = ?",
+                (vid, sid),
+            ).fetchone()
+            if v:
+                d = dict(v)
+                owner_phone = d.get("owner_phone")
+                owner_unit = d.get("owner_unit_number")
+        out_row = conn.execute(
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE c.id = ?", (cid,)
+        ).fetchone()
+        result = _row_to_dict(out_row)
+
+    if owner_phone:
+        from .notify import send_whatsapp
+
+        unit_str = f" (flat {owner_unit})" if owner_unit else ""
+        send_whatsapp(
+            owner_phone,
+            f"NOTICE: vehicle {plate or ''}{unit_str} has been "
+            f"clamped by society management. Ticket "
+            f"{result.get('ticket_number')}. Contact the office to "
+            f"resolve.",
+        )
+    return result
 
 
 def add_message(

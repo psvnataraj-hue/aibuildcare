@@ -284,3 +284,12 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_society
     ON vehicles(society_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_plate
     ON vehicles(society_id, plate_number);
+
+-- P2 (parking vertical): parking-specific columns on complaints.
+-- Idempotent ALTERs for prod tables already provisioned.
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS vehicle_plate TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS vehicle_id INTEGER REFERENCES vehicles(id);
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS violation_type TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS clamped INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS clamped_at TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS clamping_authorized_by INTEGER REFERENCES users(id);

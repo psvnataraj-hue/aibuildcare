@@ -79,6 +79,13 @@ CREATE TABLE IF NOT EXISTS complaints (
     major_incident               INTEGER NOT NULL DEFAULT 0,
     major_incident_flagged_at    TEXT,
     major_incident_reason        TEXT,
+    -- P2: parking-specific columns (matched by pg ALTERs)
+    vehicle_plate                TEXT,
+    vehicle_id                   INTEGER,
+    violation_type               TEXT,
+    clamped                      INTEGER NOT NULL DEFAULT 0,
+    clamped_at                   TEXT,
+    clamping_authorized_by       INTEGER,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at     TEXT
@@ -258,3 +265,18 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_society
     ON vehicles(society_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_plate
     ON vehicles(society_id, plate_number);
+
+-- P2 (parking vertical): parking-specific columns on complaints.
+-- sqlite ships with a version older than 3.35 here, so ALTER TABLE
+-- ADD COLUMN IF NOT EXISTS is unavailable. Inline the columns into
+-- the CREATE TABLE complaints above instead (which we patch below
+-- via a helper migration block). For prod the pg migration uses
+-- IF NOT EXISTS ALTERs.
+--
+-- Workaround: tests create fresh DBs (conftest tmp_path) so the
+-- complaints table is built from CREATE TABLE IF NOT EXISTS above.
+-- We add the parking columns there by re-creating the table only
+-- if it doesn't already include them. The simplest safe approach
+-- is a DROP-and-recreate at the bottom — but tests have rows by
+-- then. Cleanest: edit the original CREATE TABLE itself (done in
+-- a separate edit), and leave this block as a no-op for clarity.

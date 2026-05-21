@@ -83,6 +83,24 @@ def _reason_for(conn, c: dict, now: datetime) -> str | None:
                 f"category surge: {dict(row)['n']} {cat} complaints "
                 f"in 24h"
             )
+    # 5. P3 — repeat parking offender (>=3 violations from the SAME
+    # plate in 30 days, same society). Only fires on parking complaints
+    # that have an attached plate (auto-linked or manually entered).
+    plate = c.get("vehicle_plate")
+    if plate and c.get("category") == "Parking Management":
+        cutoff30 = (now - timedelta(days=30)).isoformat()
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM complaints "
+            "WHERE society_id = ? AND vehicle_plate = ? "
+            "AND category = 'Parking Management' "
+            "AND created_at >= ?",
+            (c["society_id"], plate, cutoff30),
+        ).fetchone()
+        if row and dict(row)["n"] >= 3:
+            return (
+                f"repeat parking offender: plate {plate} cited "
+                f"{dict(row)['n']} times in 30 days"
+            )
     return None
 
 
