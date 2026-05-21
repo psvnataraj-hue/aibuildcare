@@ -10,6 +10,7 @@ import {
   Users as UsersIcon,
   TrendingUp,
   Store,
+  ShieldCheck,
   LogOut,
   Moon,
   Sun,
@@ -34,9 +35,9 @@ const menuOpen = ref(false)
 const profileOpen = ref(false)
 
 // E3h: every nav item declares the minimum permission it requires.
-// `null` = always visible to any authenticated user (Dashboard,
-// Settings are user-scoped; Complaints requires at least the basic
-// view-own/view-all gates the page itself enforces server-side).
+// `perm: null` = always visible to any authenticated user.
+// `role: 'admin'` (E3g) = OEM-only entries; admin uniquely owns
+// privilege-escalation surfaces like the RBAC override editor.
 const ALL_NAV = [
   { to: '/', key: 'dashboard', icon: LayoutDashboard, perm: null },
   { to: '/complaints', key: 'complaints', icon: ClipboardList, perm: null },
@@ -50,15 +51,21 @@ const ALL_NAV = [
     perm: PERMISSIONS.FILE_COMPLAINT },
   { to: '/analytics', key: 'analytics', icon: BarChart3,
     perm: PERMISSIONS.VIEW_ALL },
+  { to: '/admin/rbac', key: 'rbac', icon: ShieldCheck,
+    perm: null, role: 'admin' },
   { to: '/settings', key: 'settings', icon: SettingsIcon, perm: null },
 ] as const
 
 const nav = computed(() => {
   const u = currentUser.value
-  if (!u) return ALL_NAV.filter((n) => n.perm === null)
-  return ALL_NAV.filter(
-    (n) => n.perm === null || u.permissions.includes(n.perm),
-  )
+  if (!u) return ALL_NAV.filter((n) => n.perm === null && !('role' in n && n.role))
+  return ALL_NAV.filter((n) => {
+    // role-gated entries (e.g. admin-only) must match exactly
+    if ('role' in n && n.role && u.role !== n.role) return false
+    // permission-gated entries must be in the user's effective set
+    if (n.perm && !u.permissions.includes(n.perm)) return false
+    return true
+  })
 })
 
 async function logout() {

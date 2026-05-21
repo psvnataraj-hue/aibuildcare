@@ -15,6 +15,7 @@ const DICT: Record<string, { en: string; hi: string }> = {
   staff: { en: 'Staff', hi: 'स्टाफ' },
   hierarchy: { en: 'Hierarchy', hi: 'पदानुक्रम' },
   vendors: { en: 'Vendors', hi: 'विक्रेता' },
+  rbac: { en: 'Permissions', hi: 'अनुमतियाँ' },
   logout: { en: 'Logout', hi: 'लॉग आउट' },
   overview: { en: 'Overview', hi: 'अवलोकन' },
   open: { en: 'Open', hi: 'खुली' },
