@@ -14,6 +14,7 @@ Hardening (Gemini audit fixes):
     than the response body.
 """
 import logging
+import os
 import secrets
 
 from fastapi import (
@@ -21,7 +22,7 @@ from fastapi import (
 )
 
 from ..config import get_settings
-from ..services import jobs_service
+from ..services import jobs_service, operator_events
 
 router = APIRouter(prefix="/internal/jobs", tags=["internal-jobs"])
 log = logging.getLogger("aibuildcare.jobs")
@@ -53,6 +54,15 @@ def _safe_run_tick() -> None:
         log.exception("tick crashed")
 
 
+def _seeding_lock_active() -> bool:
+    """Part 0-B Layer 3 cron-safety guard. When set, the tick is a
+    structural no-op — no job runs, no heartbeat is written, no
+    side-effect can fire. Used during seed-and-verify so an unintended
+    historical-complaint-still-open status can't trigger a flood of
+    escalations / reminders / WhatsApp messages."""
+    return os.getenv("AIBUILDCARE_SEEDING_LOCK", "") == "1"
+
+
 @router.post(
     "/tick",
     status_code=status.HTTP_202_ACCEPTED,
@@ -64,6 +74,21 @@ def tick(background_tasks: BackgroundTasks) -> dict:
     Each job is idempotent + self-throttled by DB state, so it is safe
     to spawn-and-forget. Per-tick rollup is logged by
     ``jobs_service.run_tick`` (``log.info('tick complete: ...')``);
-    top-level crashes are caught by ``_safe_run_tick``."""
+    top-level crashes are caught by ``_safe_run_tick``.
+
+    Part 0-B Layer 3: if AIBUILDCARE_SEEDING_LOCK=1 the tick returns 202
+    immediately without queuing any work — the operator-event log
+    records the activation so the dashboard can show "cron paused for
+    seeding". Critically the heartbeat is NOT written under lock, so the
+    dead-man's-switch (45-min silent-cron alert) intentionally remains
+    armed — if the lock is left on past 45 min the operator gets warned."""
+    if _seeding_lock_active():
+        operator_events.log_event(
+            "seeding_lock_active",
+            "/internal/jobs/tick skipped — AIBUILDCARE_SEEDING_LOCK=1",
+            service="cron", severity="info",
+            metadata={"action": "tick_skipped"},
+        )
+        return {"status": "accepted", "seeding_lock": True}
     background_tasks.add_task(_safe_run_tick)
     return {"status": "accepted"}

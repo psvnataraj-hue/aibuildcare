@@ -371,5 +371,21 @@ def parse_complaint(
         return rule_based_parse(text)
     try:
         return _llm_parse(text, image_urls, _configured_langs())
-    except Exception:
+    except Exception as exc:
+        # Graceful degradation: fall back to rule-based parser so intake
+        # never fails. Operator-event makes the silent fallback visible
+        # in the diagnostics tile / event log.
+        try:
+            from . import operator_events
+            operator_events.log_event(
+                "external_call_failed",
+                f"Anthropic parser failed, fell back to rule-based: "
+                f"{type(exc).__name__}: {exc}",
+                service="anthropic", severity="error",
+                metadata={"exc_type": type(exc).__name__,
+                          "exc_str": str(exc)[:300],
+                          "fallback": "rule_based_parse"},
+            )
+        except Exception:
+            pass  # never let logging itself break the parser
         return rule_based_parse(text)

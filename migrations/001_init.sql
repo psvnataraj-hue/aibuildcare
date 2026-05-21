@@ -133,6 +133,21 @@ CREATE TABLE IF NOT EXISTS system_config (
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS operator_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts           TEXT NOT NULL DEFAULT (datetime('now')),
+    event_type   TEXT NOT NULL,
+    service      TEXT,
+    severity     TEXT NOT NULL DEFAULT 'info',
+    message      TEXT NOT NULL,
+    metadata     TEXT,
+    society_id   INTEGER,
+    seen         INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_operator_events_ts       ON operator_events(ts);
+CREATE INDEX IF NOT EXISTS idx_operator_events_severity ON operator_events(severity);
+CREATE INDEX IF NOT EXISTS idx_operator_events_service  ON operator_events(service);
+
 CREATE TABLE IF NOT EXISTS staff_members (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     society_id    INTEGER NOT NULL REFERENCES societies(id),
@@ -214,7 +229,8 @@ CREATE TABLE IF NOT EXISTS role_permission_overrides (
 );
 INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES
     ('max_pending_jobs_per_contractor', '10'),
-    ('load_balancing_enabled', 'true');
+    ('load_balancing_enabled', 'true'),
+    ('cron_last_tick_at', '1970-01-01T00:00:00+00:00');
 
 INSERT OR IGNORE INTO categories (name, sla_hours) VALUES
     ('AC/Cooling', 4),

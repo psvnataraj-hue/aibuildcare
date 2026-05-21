@@ -267,12 +267,32 @@ def run_due_complainant_updates(now: datetime | None = None) -> dict:
 
 
 # ---- tick -----------------------------------------------------------
+def _write_cron_heartbeat() -> None:
+    """Stamp `system_config['cron_last_tick_at']` with the current UTC
+    timestamp. Read by diagnostics to detect a silent cron (no tick in
+    >45 min = dead-man's switch alert)."""
+    from ..db import get_conn
+    ts = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE system_config SET config_value = ?, "
+                "updated_at = ? WHERE config_key = 'cron_last_tick_at'",
+                (ts, ts),
+            )
+    except Exception as exc:  # heartbeat MUST not break the tick
+        log.warning("cron heartbeat write failed: %s", exc)
+
+
 def run_tick(now: datetime | None = None) -> dict:
     """Run every due job. Each in its own try/except so a single job
     failure doesn't abort the tick."""
     summary: dict = {}
     from . import incident_flagging as _inc
     from . import weekly_summary as _wk
+    from . import operator_events as _ops
+
+    _write_cron_heartbeat()
 
     for name, fn in (
         ("auto_escalations", run_due_escalations),
@@ -286,9 +306,27 @@ def run_tick(now: datetime | None = None) -> dict:
         except Exception as exc:  # last-resort guard
             log.exception("%s top-level failure: %s", name, exc)
             summary[name] = {"error": str(exc)}
-    # B1 follow-up: the /tick endpoint dispatches us via BackgroundTasks
-    # and discards our return value. Log the rollup so ops can grep
-    # "tick complete" to see per-tick activity instead of staring at
-    # individual job log lines.
+            # Surface to operator log too — last-resort job failure
+            # is exactly the kind of thing that must NOT be silent.
+            try:
+                _ops.log_event(
+                    "cron_job_failed", f"job {name} crashed: {exc}",
+                    service="cron", severity="error",
+                    metadata={"job": name, "exc_type": type(exc).__name__},
+                )
+            except Exception:
+                pass
+
     log.info("tick complete: %s", summary)
+    # Operator-readable heartbeat — one row per tick. Severity=info so
+    # it doesn't trigger self-alert; severity_counts() still sees it.
+    try:
+        _ops.log_event(
+            "cron_tick_complete",
+            f"tick complete: {sum(int(v.get('escalated_count', 0) if isinstance(v, dict) else 0) for v in summary.values())} escalations + reminders + updates",
+            service="cron", severity="info",
+            metadata={"summary": summary},
+        )
+    except Exception:
+        pass
     return summary

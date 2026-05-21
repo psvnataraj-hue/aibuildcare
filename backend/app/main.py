@@ -12,6 +12,7 @@ from app.routers import (  # noqa: E402
     admin,
     auth,
     complaints,
+    diagnostics,
     escalation,
     health,
     internal_jobs,
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(vehicles.router)
     app.include_router(internal_jobs.router)
     app.include_router(webhooks.router)
+    app.include_router(diagnostics.router)
 
     @app.on_event("startup")
     def _startup() -> None:

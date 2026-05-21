@@ -56,4 +56,20 @@ def upload_bytes(data: bytes, content_type: str, ext: str = "") -> str | None:
         return f"{s.r2_public_base_url.rstrip('/')}/{key}"
     except Exception as exc:  # pragma: no cover - network failure path
         log.warning("R2 upload failed: %s", exc)
+        # Visible in the diagnostics tile / event log; complaint still
+        # gets created (media just won't render).
+        try:
+            from ..services import operator_events
+            operator_events.log_event(
+                "external_call_failed",
+                f"R2 upload failed ({len(data)} bytes): "
+                f"{type(exc).__name__}: {exc}",
+                service="r2", severity="error",
+                metadata={"exc_type": type(exc).__name__,
+                          "exc_str": str(exc)[:300],
+                          "key": key,
+                          "size_bytes": len(data)},
+            )
+        except Exception:
+            pass
         return None
