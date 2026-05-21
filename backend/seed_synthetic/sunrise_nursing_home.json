@@ -5,10 +5,11 @@
     "vertical": "hospital_facility",
     "description": "Sunrise Nursing Home — demo hospital facility. 3 wings, ~50 inpatient beds + ICU + 4 OTs + diagnostics. Doubles as an onboarding template for any small-to-mid hospital.",
     "design_notes": [
-      "★ PATIENTS ARE DELIBERATELY NOT MODELED. This is a facilities-management deployment — complaints route on (wing, room, bed, department), never on patient name or ID. See README.md 'Hospital DPDP design decision' for the full reasoning.",
-      "Effect: patient names / IDs / health context are never written to complaints.text, never sent to Anthropic (parser), never sent to Sarvam (STT/TTS), and never stored in this DB. Eliminates a class of DPDP Act 2023 compliance surface.",
-      "Effect: patient-churn (admissions, discharges, transfers) is ENTIRELY out of scope. We do not model occupancy. Complaints are about the physical infrastructure — 'ICU-101-B2 nurse-call button broken', not 'patient X's call button'.",
-      "Routing key shape: '{wing}-{dept}-{room}-{bed}' or '{wing}-{dept}-{room}' for non-bed spaces (OT, lab, pharmacy). Stored in the existing `units.unit_number` column — no schema change needed."
+      "★ DESIGNED DATA BOUNDARY (DPDP Act 2023). This platform processes facility operations only. By design, it sees exactly four things about a complaint: (1) the physical location — wing / department / room / bed; (2) the operational request — 'AC not cooling', 'nurse-call button broken'; (3) the staff handling the request; (4) any photos of physical infrastructure attached to the complaint. Nothing else.",
+      "★ AFFIRMATIVELY OUT-OF-BOUNDS — by architecture, not by omission: patient identity (name, MRN, admission number); diagnoses, conditions, medications, procedures; any clinical content; treatment history; insurance / billing; consent forms. These items never enter the complaint text, never traverse the parser (Anthropic), the STT/TTS layer (Sarvam), the storage layer (Supabase), the messaging layer (Twilio/SendGrid), or the audit log. If a complaint message attempts to include such content, it is the hospital's intake-process responsibility to redact before submission; the platform's role is to make the boundary easy to honour by routing on infrastructure only.",
+      "Why this matters: under DPDP Act 2023, patient health information is sensitive personal data with strict consent, purpose-limitation, and retention requirements. By keeping clinical content out of the system entirely, this deployment stays cleanly within the act's operational-data category — no special handling, no patient-consent flows, no cross-border data concerns.",
+      "Routing key shape: '{wing}-{dept}-{room}-{bed}' or '{wing}-{dept}-{room}' for non-bed spaces (OT, lab, pharmacy). Stored in the existing `units.unit_number` column — no schema change needed.",
+      "Patient lifecycle (admissions, discharges, transfers) is ENTIRELY out of scope. We do not model occupancy. Complaints are about the room/bed as a physical asset — 'ICU-101-B2 nurse-call button broken' — independent of who is or isn't occupying it."
     ]
   },
   "society": {
@@ -97,12 +98,13 @@
     {"role_key": "plumber_inhouse",       "title": "In-House Plumber",      "count": 1, "in_chain": false, "category_specialty": "Plumbing — General"}
   ],
   "churn_seeds": {
-    "_note": "Part 0-E — visible lifecycle cases. Hospital-specific: a biomedical engineer who left holding open OT-equipment tickets is a particularly nasty orphan.",
+    "_note": "Part 0-E — visible lifecycle cases. Hospital-specific: a biomedical engineer who left holding open OT-equipment tickets is a particularly nasty orphan. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left — the worst-case orphan.",
     "deactivated_staff": [
-      {"role_key": "biomedical_engineer", "name_hint": "Departed BME #1", "holds_open_complaints_at_deactivation": 2, "reason": "transferred to sister facility 2026-04-22"},
-      {"role_key": "housekeeper",         "name_hint": "Departed housekeeper #1", "holds_open_complaints_at_deactivation": 1, "reason": "resigned 2026-05-01"}
+      {"role_key": "biomedical_engineer", "name_hint": "Departed BME #1",            "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "transferred to sister facility 2026-04-22"},
+      {"role_key": "housekeeper",         "name_hint": "Departed housekeeper #1",    "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "resigned 2026-05-01"},
+      {"role_key": "pharmacy_assistant",  "name_hint": "Departed pharmacy assistant","holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "resigned 2026-05-08 — left a stock-out ticket already escalated to ward admin"}
     ],
-    "retired_contractor": {"category": "Medical Gas / Oxygen", "vendor_name": "OxyMed Supplies (contract ended)", "holds_open_jobs_at_retirement": 1, "reason": "contract not renewed 2026-04-30"}
+    "retired_contractor": {"category": "Medical Gas / Oxygen", "vendor_name": "OxyMed Supplies (contract ended)", "holds_open_jobs_at_retirement": 1, "highest_open_priority": "urgent", "reason": "contract not renewed 2026-04-30"}
   },
   "escalation_chain": [
     {"level": 1, "role_key": "ward_admin"},

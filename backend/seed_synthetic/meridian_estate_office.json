@@ -76,12 +76,13 @@
     {"role_key": "housekeeper",           "title": "Housekeeper",             "count": 3, "in_chain": false, "category_specialty": "Cleanliness — Common Area"}
   ],
   "churn_seeds": {
-    "_note": "Office estates have steady-state churn — a helpdesk agent who left holding open IT tickets, a security guard rotated to another property mid-shift.",
+    "_note": "Office estates have steady-state churn — a helpdesk agent who left holding open IT tickets, a security guard rotated to another property mid-shift. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left.",
     "deactivated_staff": [
-      {"role_key": "helpdesk_agent",  "name_hint": "Departed helpdesk agent", "holds_open_complaints_at_deactivation": 2, "reason": "resigned 2026-04-30"},
-      {"role_key": "housekeeper",     "name_hint": "Departed housekeeper",    "holds_open_complaints_at_deactivation": 1, "reason": "rotated to sister property 2026-05-05"}
+      {"role_key": "helpdesk_agent",      "name_hint": "Departed helpdesk agent", "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "resigned 2026-04-30 — left a Card-Access ticket already at facility_manager"},
+      {"role_key": "housekeeper",         "name_hint": "Departed housekeeper",    "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "rotated to sister property 2026-05-05"},
+      {"role_key": "security_guard",      "name_hint": "Departed guard #1",       "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "terminated 2026-05-12 — left a Security incident at south-tower lobby already escalated to operations_manager"}
     ],
-    "retired_contractor": {"category": "Lift", "vendor_name": "OldLift AMC Services (contract ended)", "holds_open_jobs_at_retirement": 1, "reason": "contract not renewed 2026-04-25"}
+    "retired_contractor": {"category": "Lift", "vendor_name": "OldLift AMC Services (contract ended)", "holds_open_jobs_at_retirement": 1, "highest_open_priority": "high", "reason": "contract not renewed 2026-04-25"}
   },
   "escalation_chain": [
     {"level": 1, "role_key": "facility_manager"},

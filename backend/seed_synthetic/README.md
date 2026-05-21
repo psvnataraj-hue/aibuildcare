@@ -13,7 +13,8 @@ protected** — see *Isolation guarantees* below.
 | 101 | Sunrise Nursing Home | hospital (rooms + beds, **no patients**) | `sunrise_nursing_home.json` |
 | 102 | Stellar Events | event management company | `stellar_events.json` |
 | 103 | Meridian Estate Office | office estate | `meridian_estate_office.json` |
-| 100 (overlay) | Parking scenario | overlays Greenwood — parking-specific data | `parking_scenario.json` |
+| 100 (overlay) | Parking — Greenwood | residential parking — per-unit slots, 9 violation types | `parking_scenario_greenwood.json` |
+| 103 (overlay) | Parking — Meridian | office parking — per-tenant-suite slots, cab-zone, exec-reserved, after-hours rules | `parking_scenario_meridian.json` |
 
 Each config doubles as a real-onboarding template. To onboard a real
 society/hospital/event-co/estate, copy the matching file, change `sid` +
@@ -76,28 +77,51 @@ side-by-side without code changes. The cron itself still runs every 15 min
 (cron-job.org cadence) — testers use the "trigger escalation check now"
 button (Part 5-2) for faster loops.
 
-## Hospital DPDP design decision (Sunrise Nursing Home)
+## Hospital data boundary (Sunrise Nursing Home — designed, not omitted)
 
-**Patients are deliberately not modeled.** The config tracks rooms, beds,
-and departments; complaints route on `(room, bed, department)` — never
-on patient name or ID.
+This deployment processes facility operations only. The boundary below is
+an **architectural property** of the platform, not a coverage gap.
 
-Reasoning:
+**What the platform sees, by design:**
 
-- DPDP Act 2023 classifies patient health information as sensitive personal
-  data with stricter consent + retention requirements
-- Routing on physical infrastructure (rooms/beds) is sufficient — a
-  complaint says "ICU-101-B2 nurse-call button broken" not "patient X's
-  call button broken"
-- Patient names/IDs are never sent to Anthropic (parser), Sarvam (STT/TTS),
-  or stored in `complaints.text` — eliminates a whole class of compliance
-  surface
-- Eliminates patient-churn modeling entirely (we don't seed admissions,
-  discharges, or patient transfers — these are out of scope for a
-  facilities-management platform)
+- the physical location of a complaint — wing / department / room / bed
+- the operational request — *"AC not cooling"*, *"nurse-call button broken"*,
+  *"linen not changed"*, *"lift stuck at 3rd floor"*
+- the staff handling the request (assignee + escalation chain)
+- any photos of physical infrastructure attached to the complaint
 
-This decision is restated in `sunrise_nursing_home.json` under
-`_meta.design_notes`.
+**What never enters the platform, by design:**
+
+- patient identity — name, MRN, admission number, bed-occupant linkage
+- diagnoses, conditions, medications, procedures, treatment history
+- any clinical content of any kind
+- insurance, billing, consent forms
+- patient lifecycle events — admissions, discharges, transfers
+
+Nothing in the above list is written to `complaints.text`, sent to
+Anthropic (parser), traversed by Sarvam (STT/TTS), stored in Supabase,
+emitted via Twilio / SendGrid, or recorded in the audit log. The platform
+is built so the hospital does not have to engineer redaction layers
+around it — routing on infrastructure alone is sufficient for the
+facility-management use case.
+
+**Why this matters legally.** Under DPDP Act 2023, patient health
+information is *sensitive personal data* with stricter consent,
+purpose-limitation, and retention requirements. By keeping clinical
+content out of the system entirely, this deployment stays cleanly within
+the act's operational-data category — no special handling, no
+patient-consent flows, no cross-border data concerns.
+
+**What the hospital is responsible for.** Intake. If a resident-facing
+WhatsApp message attempts to include clinical content ("patient in 304
+with diabetic emergency, AC not working"), the hospital's intake process
+must redact the clinical portion before submission. The platform's role
+is to make that redaction trivial — by only needing the location + the
+infrastructure problem, never the patient context — not to attempt
+clinical-content detection itself.
+
+This boundary is restated in `sunrise_nursing_home.json` under
+`_meta.design_notes` so it travels with the config file.
 
 ## Editing a config file
 
@@ -109,6 +133,7 @@ society            { name, address, timezone }
 structure          { vertical-specific: towers/units, rooms/beds, events, suites }
 categories         [ { name, priority_default, common, sla_override? } ]
 staff_roles        [ { role_key, title, count, category_specialty?, in_chain? } ]
+churn_seeds        { deactivated_staff[], retired_contractor }
 escalation_chain   [ { level, role_key } ]
 sla_config         { default, overrides }
 contractor_specialties [ { category, vendor_name, rating, count } ]
@@ -117,6 +142,12 @@ contractor_specialties [ { category, vendor_name, rating, count } ]
 Hand-edit freely. The seeder (Part 6, not yet built) will read these and
 produce DB inserts. No code changes needed when you tweak counts,
 categories, vendor names, or SLA values.
+
+**Catch-all guarantee.** Every vertical's `categories` array ends in an
+`"Other"` row — when the parser's category-confidence is below threshold
+or the complaint doesn't match any known category, routing falls through
+to `"Other"` rather than failing. This is verified across all four
+configs (Greenwood, Sunrise, Stellar, Meridian).
 
 ## What this directory does NOT contain
 

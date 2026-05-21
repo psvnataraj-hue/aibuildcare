@@ -65,12 +65,13 @@
     {"role_key": "runner",            "title": "Event Runner",              "count": 3, "in_chain": false}
   ],
   "churn_seeds": {
-    "_note": "Event ops has high crew churn — a runner who quit mid-fest with 4 open backstage tickets is a realistic and brutal orphan case.",
+    "_note": "Event ops has high crew churn — a runner who quit mid-fest with 4 open backstage tickets is a realistic and brutal orphan case. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left.",
     "deactivated_staff": [
-      {"role_key": "runner",        "name_hint": "Departed runner #1", "holds_open_complaints_at_deactivation": 4, "reason": "walked off mid-event 2026-05-10"},
-      {"role_key": "av_lead",       "name_hint": "Departed AV lead",   "holds_open_complaints_at_deactivation": 2, "reason": "moved to competitor 2026-04-28"}
+      {"role_key": "runner",        "name_hint": "Departed runner #1",   "holds_open_complaints_at_deactivation": 4, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "walked off mid-event 2026-05-10"},
+      {"role_key": "av_lead",       "name_hint": "Departed AV lead",     "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "moved to competitor 2026-04-28 — left a Sangeet-Goa AV ticket already at event_manager"},
+      {"role_key": "catering_lead", "name_hint": "Departed catering lead","holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "quit mid-wedding 2026-05-05 — Worli food-quality complaint already escalated to sr_event_manager"}
     ],
-    "retired_contractor": {"category": "Pyrotechnics / SFX", "vendor_name": "SkyFire SFX (licence lapsed)", "holds_open_jobs_at_retirement": 1, "reason": "licence not renewed 2026-04-15"}
+    "retired_contractor": {"category": "Pyrotechnics / SFX", "vendor_name": "SkyFire SFX (licence lapsed)", "holds_open_jobs_at_retirement": 1, "highest_open_priority": "urgent", "reason": "licence not renewed 2026-04-15"}
   },
   "escalation_chain": [
     {"level": 1, "role_key": "event_manager"},

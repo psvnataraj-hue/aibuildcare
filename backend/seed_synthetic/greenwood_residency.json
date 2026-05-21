@@ -70,12 +70,13 @@
     {"role_key": "receptionist",          "title": "Receptionist",          "count": 1,  "in_chain": false}
   ],
   "churn_seeds": {
-    "_note": "Part 0-E — deliberately seed lifecycle cases so the orphan-work gap is visible in the walkthrough report.",
+    "_note": "Part 0-E — deliberately seed lifecycle cases so the orphan-work gap is visible in the walkthrough report. At least one deactivated staff member holds a high-priority complaint that was already escalated before they left.",
     "deactivated_staff": [
-      {"role_key": "plumber_inhouse", "name_hint": "Departed plumber #1", "holds_open_complaints_at_deactivation": 3, "reason": "resigned 2026-04-15"},
-      {"role_key": "security_guard",  "name_hint": "Departed guard #1",   "holds_open_complaints_at_deactivation": 1, "reason": "terminated 2026-05-02"}
+      {"role_key": "plumber_inhouse",     "name_hint": "Departed plumber #1",     "holds_open_complaints_at_deactivation": 3, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 1, "reason": "resigned 2026-04-15 — left with a Sewage/Drainage ticket already escalated to manager"},
+      {"role_key": "security_guard",      "name_hint": "Departed guard #1",       "holds_open_complaints_at_deactivation": 1, "highest_open_priority": "normal", "highest_escalation_level_at_deactivation": 0, "reason": "terminated 2026-05-02"},
+      {"role_key": "electrician_inhouse", "name_hint": "Departed electrician #1", "holds_open_complaints_at_deactivation": 2, "highest_open_priority": "high",   "highest_escalation_level_at_deactivation": 2, "reason": "moved to another society 2026-04-28 — Tower-C wiring ticket already at sr_manager"}
     ],
-    "retired_contractor": {"category": "AC Repair", "vendor_name": "ChillRight Services (retired)", "holds_open_jobs_at_retirement": 2, "reason": "company shutdown 2026-04-20"}
+    "retired_contractor": {"category": "AC/Cooling", "vendor_name": "ChillRight Services (retired)", "holds_open_jobs_at_retirement": 2, "highest_open_priority": "high", "reason": "company shutdown 2026-04-20"}
   },
   "escalation_chain": [
     {"level": 1, "role_key": "manager"},
