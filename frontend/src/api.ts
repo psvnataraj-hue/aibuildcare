@@ -126,6 +126,18 @@ export interface ContractorAnalytics {
   >
   availability: { status: string; last_activity: string | null }
 }
+// E1b' / E3d — vendor directory (society-vetted contractors opted in
+// to personal-job referrals, with click-to-chat WhatsApp deep links).
+export interface Vendor {
+  id: number
+  name: string
+  phone: string | null
+  average_rating: number | null
+  specialty: string | null
+  primary_category: boolean
+  wa_link: string | null
+}
+
 // E1c / E3e — escalation hierarchy CRUD
 export interface HierarchyEntry {
   id: number
@@ -362,6 +374,11 @@ export const api = {
     req<{ deleted: number }>(`/api/v1/escalation/hierarchy/${id}`, {
       method: 'DELETE',
     }),
+  // E1b' / E3d — vendor directory
+  vendorsByCategory: (category: string) =>
+    req<Vendor[]>(
+      `/api/v1/vendors/by-category?category=${encodeURIComponent(category)}`
+    ),
 }
 
 export function openWS(onEvent: (e: { event: string; payload: any }) => void) {
