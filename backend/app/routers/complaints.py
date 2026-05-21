@@ -50,6 +50,44 @@ def list_complaints(
     )
 
 
+@router.get("/complaints/mine",
+            dependencies=[Depends(require(rbac.RESOLVE))])
+def list_my_assignments(
+    include_resolved: bool = False,
+    sid: int = Depends(current_society),
+    user: dict = Depends(current_user),
+) -> dict:
+    """E3i: complaints currently assigned to the calling user.
+
+    Links user.email -> staff_members.email to find the staff record.
+    Returns {staff: {...} | None, complaints: [...]}; an empty staff
+    on the frontend means 'no staff_members row matches your email
+    yet — ask admin to add you to /staff'.
+    """
+    from ..db import get_conn
+
+    email = (user.get("email") or "").strip().lower()
+    if not email:
+        return {"staff": None, "complaints": []}
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, name, phone_primary FROM staff_members "
+            "WHERE society_id = ? AND lower(email) = ? AND active = 1",
+            (sid, email),
+        ).fetchone()
+    if not row:
+        return {"staff": None, "complaints": []}
+    staff = dict(row)
+    return {
+        "staff": staff,
+        "complaints": svc.list_complaints_assigned_to_staff(
+            staff["id"],
+            society_id=sid,
+            include_resolved=include_resolved,
+        ),
+    }
+
+
 @router.post("/complaints", status_code=201,
              dependencies=[Depends(require(rbac.FILE_COMPLAINT))])
 async def create_complaint(

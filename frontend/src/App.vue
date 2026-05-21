@@ -12,6 +12,7 @@ import {
   Store,
   Car,
   ShieldCheck,
+  Briefcase,
   LogOut,
   Moon,
   Sun,
@@ -41,6 +42,11 @@ const profileOpen = ref(false)
 // privilege-escalation surfaces like the RBAC override editor.
 const ALL_NAV = [
   { to: '/', key: 'dashboard', icon: LayoutDashboard, perm: null },
+  // E3i — mobile-first "My Work" page; gated on RESOLVE which is the
+  // backend gate. Visible to: staff, manager, sr_manager, secretary,
+  // chairman, committee, contractor, enforcement_officer, admin.
+  { to: '/my-work', key: 'my_work', icon: Briefcase,
+    perm: PERMISSIONS.RESOLVE },
   { to: '/complaints', key: 'complaints', icon: ClipboardList, perm: null },
   { to: '/performance', key: 'contractors', icon: Wrench,
     perm: PERMISSIONS.VIEW_ALL },

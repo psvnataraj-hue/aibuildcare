@@ -367,6 +367,39 @@ def list_complaints(
         return [_row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
+def list_complaints_assigned_to_staff(
+    staff_id: int, society_id: int | None = None,
+    include_resolved: bool = False,
+) -> list[dict]:
+    """E3i: complaints currently assigned to a specific staff member.
+
+    Used by the /my-work mobile-first page so the 'staff' role (which
+    lacks VIEW_ALL) can see what they need to act on. Society-scoped.
+    By default excludes resolved/closed so the list focuses on
+    actionable work; pass include_resolved=True to see history.
+    """
+    with get_conn() as conn:
+        sid = _sid(conn, society_id)
+        clauses = [
+            "c.society_id = ?",
+            "c.assigned_staff_id = ?",
+        ]
+        params: list = [sid, staff_id]
+        if not include_resolved:
+            clauses.append("c.status NOT IN ('resolved', 'closed')")
+        sql = (
+            "SELECT c.*, s.name AS assigned_staff_name "
+            "FROM complaints c "
+            "LEFT JOIN staff_members s ON s.id = c.assigned_staff_id "
+            "WHERE " + " AND ".join(clauses) +
+            " ORDER BY "
+            "  CASE c.priority "
+            "    WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, "
+            "  c.created_at DESC"
+        )
+        return [_row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
 def get_complaint(cid: int, society_id: int | None = None) -> dict:
     with get_conn() as conn:
         sid = _sid(conn, society_id)
