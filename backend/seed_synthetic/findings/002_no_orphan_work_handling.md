@@ -1,23 +1,41 @@
-# Finding 002 — No orphaned-work handling when staff or contractors deactivate
+# Finding 002 — No orphaned-work handling: deactivated staff retain assignments AND unroutable complaints have no retry
 
-**Discovered**: 2026-05-21, during Part 0 design audit ("does the
-deactivation flow reassign in-flight complaints?"). The synthetic-data
-build's Part 0-E scenarios are deliberately seeded so this gap becomes
-visible in the walkthrough/demo report rather than papered over.
+**Discovered**: 2026-05-21 (Gap 1, during Part 0 design audit
+"does the deactivation flow reassign in-flight complaints?");
+2026-05-22 (Gap 2, while verifying time-to-assignment of new
+complaints).
 
-**Severity**: MEDIUM. Degrades gracefully (escalation cron still fires,
-nothing crashes) but produces a confusing operator experience: an "open"
-complaint assigned to a person who no longer exists, with no nudge, no
-re-assignment, no surfacing.
+**Severity**: MEDIUM. Both gaps degrade gracefully (escalation cron
+still fires, nothing crashes) but produce confusing operator
+experience: complaints in limbo that look like they're being
+processed but aren't progressing.
 
-**Status today**: active. The current production DB has one society and
-few deactivation events, so the gap hasn't surfaced operationally. But
-the moment a single staff member is deactivated while holding open
-work, the orphan exists.
+**Status today**: Gap 1 is active (latent on Palms because the
+production staff list has had few deactivations to date). Gap 2 is
+dormant on the seeded demo data (every demo staff has a
+`category_specialty` that matches a real category) but activates
+the moment a customer is mid-onboarding with an incomplete staff
+roster.
+
+This finding has **two related gaps**:
+
+- **Gap 1**: Deactivating a staff member or contractor leaves their
+  existing complaint assignments dangling — no auto-reassignment,
+  no surface tile.
+- **Gap 2**: When `find_assignee` returns None at complaint creation
+  (no eligible staff in the matched category), the complaint
+  persists with `assigned_staff_id=NULL` forever — no cron job
+  picks up unassigned complaints later.
+
+Both produce the same symptom from the dashboard's perspective:
+a complaint that exists, has a category, is "open" — but is not
+actually being worked.
 
 ---
 
-## What's missing
+## Gap 1 — Deactivated staff retain their complaint assignments
+
+### What's missing
 
 When `staff_members.active` is flipped to 0 (or `contractors.is_active`
 is flipped to 0):
@@ -91,6 +109,79 @@ Per-society sample (from the configs):
 
 ---
 
+## Gap 2 — Unroutable complaints have no retry path
+
+### What's missing
+
+When a new complaint is created and `routing_service.find_assignee()`
+returns `None` (because no staff in `staff_members` has a
+`staff_categories` row with the parsed category and `active=1`, AND
+no contractor fallback matches either), the complaint persists with
+`assigned_staff_id = NULL` and `status = 'received'` forever.
+
+The escalation cron WILL still climb the chain (escalation is
+status-driven, not assignee-driven — so chairman eventually gets
+WhatsApped), but **the auto-router never retries**. No cron job
+picks up unassigned complaints. A human in the dashboard has to
+spot the unassigned ticket and manually click Assign.
+
+### Evidence
+
+Grepped across the cron job-loop for any retry path:
+
+- `backend/app/services/jobs_service.py` — searched `find_assignee`,
+  `auto_assign`, `assigned_staff_id IS NULL`, `routing_service`.
+  **Zero hits.** The tick only runs:
+  `run_due_escalations`, `run_due_staff_reminders`,
+  `run_due_complainant_updates`, `run_due_incident_flagging`,
+  `run_due_weekly_summaries` — none of them re-attempt assignment.
+- `backend/app/services/escalation_service.py` — same search, zero hits.
+- `backend/app/services/incident_flagging.py` — same, zero hits.
+
+So routing is fundamentally a one-shot, synchronous operation at
+complaint creation. If it fails, the failure is permanent until a
+human intervenes.
+
+### Why this matters in practice
+
+For Palms (sid=1), the staff roster has been built up over the
+pilot period; `find_assignee` rarely returns None today. The gap is
+dormant on the seeded demo tenants too (every Part 1 config has
+`staff_roles[].category_specialty` matching at least one of its
+seeded `categories`).
+
+The gap activates the moment ANY of these is true:
+
+- A real customer is mid-onboarding with their staff list still
+  incomplete (e.g., they've added 5 staff but haven't yet entered
+  the housekeeping specialty)
+- A new complaint category gets parsed for which no staff has a
+  matching specialty (e.g., a customer enables "Solar Panel
+  Maintenance" as a category but hasn't yet added a solar
+  specialist)
+- The Haiku parser returns a category that's slightly off
+  (e.g., "Air Conditioning" instead of the configured
+  "AC/Cooling") — find_assignee returns None for the unmatched
+  string, and the complaint silently sits unassigned even
+  though there IS an AC plumber on the team
+
+The third case is the most insidious — the data looks correct,
+the staff exists, but a single-character category-string mismatch
+breaks the routing.
+
+### Adjacent observation
+
+The escalation cron escalating on an unassigned complaint produces
+a confusing UX: the system tells the L4 chairman "this complaint
+is unresolved, please intervene" — but the chairman opens the
+ticket and sees no assignee. The chain of command was alerted but
+the work was never started. This is the same shape as Gap 1
+(deactivated assignee → orphan) but with a different cause and the
+opposite cure: Gap 1 needs reassignment of an existing-but-dead
+pointer; Gap 2 needs initial assignment that never happened.
+
+---
+
 ## Architectural decisions attached
 
 Three options, escalating in scope:
@@ -98,30 +189,47 @@ Three options, escalating in scope:
 **Option A — Surface only (cheapest).**
 
 - New cron sub-job: `surface_orphaned_complaints()` runs daily, builds
-  an admin tile "N complaints assigned to deactivated staff" with a
-  drill-down list.
+  an admin tile "N complaints orphaned" with a drill-down list.
+  Detects both Gap 1 (assigned_staff_id points to inactive staff) AND
+  Gap 2 (assigned_staff_id IS NULL on a complaint older than X hours)
+  in a single union query.
 - No automatic re-routing. Manager handles each case manually via the
   existing assign endpoint.
-- One new endpoint, ~50 lines, no schema change.
+- One new endpoint, ~80 lines (Gap 1 + Gap 2 detection), no schema
+  change.
 
-Pros: minimal blast radius, ships in half a day.
+Pros: minimal blast radius, ships in half a day. Catches both gaps
+with one mechanism.
 Cons: doesn't actually FIX the orphans, just makes them visible. Manager
 still has to click through each one.
 
-**Option B — Auto-reassign on deactivation.**
+**Option B — Auto-reassign on deactivation + periodic retry for unassigned.**
+
+For Gap 1:
 
 - On `deactivate_staff(sid)`: enqueue all that staff's open complaints
-  back through `routing_service.assign()` so a new active assignee is
-  picked from the same category specialty.
-- Log each reassignment in an `audit_trail` table or in the existing
-  message log.
-- If no eligible assignee exists (category specialty has no active
-  staff left), fall back to escalating to L1 manager + flagging.
+  back through `routing_service.find_assignee()` so a new active
+  assignee is picked from the same category specialty.
 
-Pros: actually resolves the orphans. Audit trail preserves history.
+For Gap 2:
+
+- New cron sub-job `run_due_assignment_retries()` runs every tick:
+  picks up all complaints with `assigned_staff_id IS NULL` AND
+  `contractor_id IS NULL` older than ~5 min, attempts to re-route
+  via `find_assignee()`. If still None after 24 hours, escalate to
+  L1 with a `complaint_messages` entry tagged
+  "no_eligible_assignee — manual assignment needed".
+
+Both cases:
+
+- Log each reassignment / retry in an `audit_trail` table or in the
+  existing message log so the trail is visible.
+
+Pros: actually resolves both gap classes. Audit trail preserves
+history.
 Cons: requires routing-service work + handling the "no eligible
-assignee" edge case. ~200 lines + schema for audit log if it doesn't
-already exist.
+assignee" edge case + ensuring the cron retry doesn't fight with a
+human who's just clicked Assign. ~250-300 lines + audit-log schema.
 
 **Option C — Full departure workflow.**
 

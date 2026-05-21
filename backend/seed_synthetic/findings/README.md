@@ -26,10 +26,11 @@ attached, and a recommended path forward.
 | # | Title | Severity | Status today |
 |---|---|---|---|
 | 001 | Admin role has cross-tenant data reach | **HIGH** | Dormant (only one admin exists; activates the moment a second admin is created on a different society) |
-| 002 | No orphaned-work handling when staff/contractors are deactivated | MEDIUM | Active (deactivation today already produces zombie complaints) |
+| 002 | No orphaned-work handling — **two gaps**: (1) deactivated staff retain assignments, (2) unroutable complaints have no retry path | MEDIUM | Gap 1 active (latent), Gap 2 dormant on demos / activates on incomplete customer staff rosters or parser category drift |
 | 003 | User-facing "complaint/complainant" labels read wrong outside housing | LOW (cosmetic) but high-impact at demo time | Active for non-housing verticals; must be addressed before first Sunrise / Stellar / Meridian demo |
 | 004 | No delivery or read-receipt proof; outbound is fire-and-forget; inbound timestamps are complaint-level only | **HIGH** (accountability) | Active — pitch copy claiming "delivered + read tracking" is not provable today; sandbox blocks read receipts even after wiring |
 | 005 | Two pitch claims are PARTIAL: dashboard cannot attach photos (vision-elevates-priority only fires on WhatsApp/SMS inbound); voice-note spoken reply only on WhatsApp channel + silent fallback to text if TTS fails | MEDIUM (accountability) | Active — claims true for WhatsApp intake but false for dashboard intake; brochure wording or dashboard feature needs to match |
+| 006 | Email-webhook security gaps — no auth, no `to:` validation, attachments silently dropped | **HIGH** (security) for auth + domain gaps; MEDIUM (silent data loss) for attachments | Dormant today only because `carimotech.in` has no MX record; **all three gaps activate the moment DNS routes mail to SendGrid**. Auth must be added BEFORE the MX record. |
 
 ## How this directory grows
 
