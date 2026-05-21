@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   Users,
   UserPlus,
@@ -81,6 +81,18 @@ const catPick = ref<StaffCategory>({
   skill_level: 'junior',
 })
 
+// Polish — busy state on submit buttons (prevents double-click).
+const submitting = ref(false)
+
+// Polish — Esc-to-close on whichever modal is open.
+function onKey(ev: KeyboardEvent) {
+  if (ev.key !== 'Escape') return
+  if (showCreate.value) showCreate.value = false
+  else if (editingId.value !== null) editingId.value = null
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onUnmounted(() => window.removeEventListener('keydown', onKey))
+
 async function load() {
   loading.value = true
   try {
@@ -104,6 +116,7 @@ async function submitCreate() {
   ] as const) {
     if (payload[k] === '') (payload as any)[k] = null
   }
+  submitting.value = true
   try {
     await api.createStaff(payload)
     toast(`Staff "${create.value.name}" added ✓`)
@@ -112,6 +125,8 @@ async function submitCreate() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Create failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -137,6 +152,7 @@ async function submitEdit() {
   ] as const) {
     if (payload[k] === '') (payload as any)[k] = null
   }
+  submitting.value = true
   try {
     await api.updateStaff(editingId.value, payload)
     toast('Staff updated ✓')
@@ -144,6 +160,8 @@ async function submitEdit() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Update failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 async function deactivate(s: Staff) {
@@ -348,7 +366,15 @@ onMounted(load)
       </Card>
     </div>
 
-    <!-- CREATE modal -->
+    <!-- CREATE modal — Transition wrappers for fade-in backdrop + scale-in card -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="showCreate"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -453,13 +479,15 @@ onMounted(load)
           </div>
           <div class="flex gap-2 pt-2">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitCreate"
             >
-              Create
+              {{ submitting ? 'Creating…' : 'Create' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="showCreate = false"
             >
               Cancel
@@ -468,8 +496,17 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
 
     <!-- EDIT modal -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="editingId"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -620,13 +657,15 @@ onMounted(load)
 
           <div class="flex gap-2 pt-2 border-t">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitEdit"
             >
-              Save
+              {{ submitting ? 'Saving…' : 'Save' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="editingId = null"
             >
               Cancel
@@ -635,5 +674,6 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
   </div>
 </template>

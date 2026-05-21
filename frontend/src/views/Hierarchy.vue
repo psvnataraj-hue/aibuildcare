@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   TrendingUp,
   UserPlus,
@@ -128,6 +128,7 @@ async function submitAdd() {
   const payload: HierarchyCreatePayload = { ...add.value }
   if (payload.phone === '') payload.phone = null
   if (payload.email === '') payload.email = null
+  submitting.value = true
   try {
     await api.addHierarchy(payload)
     toast(`Added ${add.value.person_name} ✓`)
@@ -135,6 +136,8 @@ async function submitAdd() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Add failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -143,6 +146,7 @@ async function submitEdit() {
   const payload: HierarchyPatchPayload = { ...edit.value }
   if (payload.phone === '') payload.phone = null
   if (payload.email === '') payload.email = null
+  submitting.value = true
   try {
     await api.updateHierarchy(editingId.value, payload)
     toast('Updated ✓')
@@ -150,6 +154,8 @@ async function submitEdit() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Update failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -169,7 +175,18 @@ const allFourLevelsSeeded = computed(() =>
   LEVELS.every((l) => (grouped.value[l.level] || []).length > 0)
 )
 
-onMounted(load)
+// Polish — busy state on submit buttons + Esc-to-close modal.
+const submitting = ref(false)
+function onKey(ev: KeyboardEvent) {
+  if (ev.key !== 'Escape') return
+  if (addingLevel.value !== null) addingLevel.value = null
+  else if (editingId.value !== null) editingId.value = null
+}
+onMounted(() => {
+  load()
+  window.addEventListener('keydown', onKey)
+})
+onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
@@ -297,7 +314,15 @@ onMounted(load)
       </Card>
     </div>
 
-    <!-- ADD modal -->
+    <!-- ADD modal — fade transition -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="addingLevel !== null"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -364,13 +389,15 @@ onMounted(load)
           </label>
           <div class="flex gap-2 pt-2">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitAdd"
             >
-              Add
+              {{ submitting ? 'Adding…' : 'Add' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="addingLevel = null"
             >
               Cancel
@@ -379,8 +406,17 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
 
     <!-- EDIT modal -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="editingId"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -453,13 +489,15 @@ onMounted(load)
           </label>
           <div class="flex gap-2 pt-2">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitEdit"
             >
-              Save
+              {{ submitting ? 'Saving…' : 'Save' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="editingId = null"
             >
               Cancel
@@ -468,5 +506,6 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
   </div>
 </template>
