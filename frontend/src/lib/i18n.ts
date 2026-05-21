@@ -14,6 +14,7 @@ const DICT: Record<string, { en: string; hi: string }> = {
   settings: { en: 'Settings', hi: 'सेटिंग्स' },
   staff: { en: 'Staff', hi: 'स्टाफ' },
   hierarchy: { en: 'Hierarchy', hi: 'पदानुक्रम' },
+  vendors: { en: 'Vendors', hi: 'विक्रेता' },
   logout: { en: 'Logout', hi: 'लॉग आउट' },
   overview: { en: 'Overview', hi: 'अवलोकन' },
   open: { en: 'Open', hi: 'खुली' },

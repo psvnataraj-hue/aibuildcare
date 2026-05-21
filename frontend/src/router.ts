@@ -11,6 +11,7 @@ import AnalyticsDashboard from './views/AnalyticsDashboard.vue'
 import Settings from './views/Settings.vue'
 import Staff from './views/Staff.vue'
 import Hierarchy from './views/Hierarchy.vue'
+import Vendors from './views/Vendors.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -37,6 +38,7 @@ const router = createRouter({
     { path: '/analytics', component: AnalyticsDashboard, meta: { auth: true } },
     { path: '/staff', component: Staff, meta: { auth: true } },
     { path: '/hierarchy', component: Hierarchy, meta: { auth: true } },
+    { path: '/vendors', component: Vendors, meta: { auth: true } },
     { path: '/settings', component: Settings, meta: { auth: true } },
   ],
 })
