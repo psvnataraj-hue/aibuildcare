@@ -138,6 +138,19 @@ export interface Vendor {
   wa_link: string | null
 }
 
+// E3g — admin RBAC override editor
+export interface EffectiveMatrix {
+  society_id: number
+  roles: Record<string, string[]>
+}
+export interface Override {
+  society_id: number
+  role: string
+  permission: string
+  granted: number  // SQLite-style 0/1 (backend returns it raw)
+  created_at?: string
+}
+
 // E1c / E3e — escalation hierarchy CRUD
 export interface HierarchyEntry {
   id: number
@@ -378,6 +391,22 @@ export const api = {
   vendorsByCategory: (category: string) =>
     req<Vendor[]>(
       `/api/v1/vendors/by-category?category=${encodeURIComponent(category)}`
+    ),
+  // E3g — admin RBAC overrides
+  adminEffectiveMatrix: () =>
+    req<EffectiveMatrix>('/api/v1/admin/permissions'),
+  adminListOverrides: () =>
+    req<Override[]>('/api/v1/admin/permissions/overrides'),
+  adminUpsertOverride: (role: string, permission: string,
+                        granted: boolean) =>
+    req<Override>('/api/v1/admin/permissions/overrides', {
+      method: 'PUT',
+      body: JSON.stringify({ role, permission, granted }),
+    }),
+  adminClearOverride: (role: string, permission: string) =>
+    req<{ cleared: number }>(
+      `/api/v1/admin/permissions/overrides?role=${encodeURIComponent(role)}&permission=${encodeURIComponent(permission)}`,
+      { method: 'DELETE' }
     ),
 }
 
