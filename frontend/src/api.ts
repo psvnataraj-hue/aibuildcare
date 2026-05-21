@@ -485,6 +485,14 @@ export const api = {
       `/api/v1/complaints/${complaintId}/authorize-clamping`,
       { method: 'POST' }
     ),
+  // E3i — mobile staff work-list
+  listMyAssignments: (includeResolved = false) =>
+    req<{
+      staff: { id: number; name: string; phone_primary: string } | null
+      complaints: Complaint[]
+    }>(
+      `/api/v1/complaints/mine${includeResolved ? '?include_resolved=true' : ''}`
+    ),
 }
 
 export function openWS(onEvent: (e: { event: string; payload: any }) => void) {
