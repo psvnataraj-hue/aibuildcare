@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   Car,
   Plus,
@@ -88,6 +88,7 @@ async function submitCreate() {
     toast('Plate number is required', 'error')
     return
   }
+  submitting.value = true
   try {
     await api.createVehicle(normalizeBlanks(create.value))
     toast(`Vehicle ${create.value.plate_number} registered ✓`)
@@ -96,6 +97,8 @@ async function submitCreate() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Create failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -116,6 +119,7 @@ function openEdit(v: Vehicle) {
 
 async function submitEdit() {
   if (!editingId.value) return
+  submitting.value = true
   try {
     await api.updateVehicle(editingId.value, normalizeBlanks(edit.value))
     toast('Vehicle updated ✓')
@@ -123,6 +127,8 @@ async function submitEdit() {
     await load()
   } catch (e: any) {
     toast(e.message || 'Update failed', 'error')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -147,7 +153,18 @@ async function reactivate(v: Vehicle) {
   }
 }
 
-onMounted(load)
+// Polish — busy state on submit buttons + Esc-to-close modal.
+const submitting = ref(false)
+function onKey(ev: KeyboardEvent) {
+  if (ev.key !== 'Escape') return
+  if (showCreate.value) showCreate.value = false
+  else if (editingId.value !== null) editingId.value = null
+}
+onMounted(() => {
+  load()
+  window.addEventListener('keydown', onKey)
+})
+onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
@@ -281,7 +298,15 @@ onMounted(load)
       </Card>
     </div>
 
-    <!-- CREATE modal -->
+    <!-- CREATE modal — fade transition -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="showCreate"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -381,13 +406,15 @@ onMounted(load)
           </label>
           <div class="flex gap-2 pt-2">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitCreate"
             >
-              Register
+              {{ submitting ? 'Registering…' : 'Register' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="showCreate = false"
             >
               Cancel
@@ -396,8 +423,17 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
 
     <!-- EDIT modal -->
+    <Transition
+      enter-active-class="transition-opacity duration-150 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div
       v-if="editingId"
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -498,13 +534,15 @@ onMounted(load)
           </label>
           <div class="flex gap-2 pt-2">
             <button
-              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90"
+              :disabled="submitting"
+              class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-60"
               @click="submitEdit"
             >
-              Save
+              {{ submitting ? 'Saving…' : 'Save' }}
             </button>
             <button
-              class="border rounded-md px-4 hover:bg-secondary"
+              :disabled="submitting"
+              class="border rounded-md px-4 hover:bg-secondary disabled:opacity-60"
               @click="editingId = null"
             >
               Cancel
@@ -513,5 +551,6 @@ onMounted(load)
         </div>
       </Card>
     </div>
+    </Transition>
   </div>
 </template>
