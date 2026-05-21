@@ -55,10 +55,15 @@ def list_complaints(
 async def create_complaint(
     body: ComplaintCreate, sid: int = Depends(current_society)
 ) -> dict:
-    c = svc.create_complaint(
-        body.raw_text, body.channel, body.reporter_phone,
-        body.reporter_email, society_id=sid,
-    )
+    try:
+        c = svc.create_complaint(
+            body.raw_text, body.channel, body.reporter_phone,
+            body.reporter_email, society_id=sid,
+            vehicle_plate=body.vehicle_plate,
+            violation_type=body.violation_type,
+        )
+    except svc.ComplaintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     await hub.broadcast("complaint.created", c)
     return c
 
@@ -228,6 +233,44 @@ async def rate(
         raise HTTPException(status_code=code, detail=str(e))
     await hub.broadcast("complaint.rated", {"id": cid, **r})
     return r
+
+
+# --- P4: parking enforcement — clamping authorization -----------------
+@router.post("/complaints/{cid}/authorize-clamping",
+             dependencies=[Depends(require(rbac.AUTHORIZE_ENFORCEMENT))])
+async def authorize_clamping(
+    cid: int,
+    sid: int = Depends(current_society),
+    user: dict = Depends(current_user),
+) -> dict:
+    """Authorize clamping a vehicle reported in a parking complaint.
+
+    Sets clamped=1, clamped_at, clamping_authorized_by on the
+    complaint row. Idempotent — re-authorizing a clamped complaint
+    is a no-op that returns current state. WhatsApps the linked
+    vehicle's owner (if any).
+
+    Restricted to Parking Management category — calling on any other
+    category returns 400.
+    """
+    try:
+        c = svc.get_complaint(cid, society_id=sid)
+    except svc.ComplaintError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if c.get("category") != svc.PARKING_CATEGORY:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "authorize-clamping is only valid on Parking Management "
+                "complaints"
+            ),
+        )
+    try:
+        updated = svc.authorize_clamping(cid, user["id"], society_id=sid)
+    except svc.ComplaintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await hub.broadcast("complaint.updated", updated)
+    return updated
 
 
 @router.post("/complaints/{cid}/status",

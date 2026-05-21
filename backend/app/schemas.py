@@ -16,6 +16,12 @@ class ComplaintCreate(BaseModel):
     channel: str = "dashboard"
     reporter_phone: str | None = None
     reporter_email: str | None = None
+    # P2 — parking-specific fields. Honoured only when the LLM (or
+    # rule fallback) classifies the complaint as 'Parking Management';
+    # ignored otherwise. vehicle_plate gets normalised + auto-linked
+    # to vehicles.id by create_complaint.
+    vehicle_plate: str | None = None
+    violation_type: str | None = None
 
 
 class ComplaintOut(BaseModel):
