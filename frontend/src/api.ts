@@ -60,6 +60,13 @@ export interface Complaint {
   major_incident: number | null
   major_incident_flagged_at: string | null
   major_incident_reason: string | null
+  // P2 — parking fields (null for non-parking complaints)
+  vehicle_plate: string | null
+  vehicle_id: number | null
+  violation_type: string | null
+  clamped: number | null
+  clamped_at: string | null
+  clamping_authorized_by: number | null
   created_at: string
   updated_at: string
   messages?: Message[]
@@ -126,6 +133,49 @@ export interface ContractorAnalytics {
   >
   availability: { status: string; last_activity: string | null }
 }
+// Parking P1 — vehicles registry (society-scoped plate -> owner map)
+export interface Vehicle {
+  id: number
+  society_id: number
+  plate_number: string
+  owner_unit_number: string | null
+  owner_name: string | null
+  owner_phone: string | null
+  vehicle_type: string | null
+  make_model: string | null
+  color: string | null
+  registered_at: string | null
+  active: boolean
+  notes: string | null
+  created_at?: string
+}
+export interface VehicleCreatePayload {
+  plate_number: string
+  owner_unit_number?: string | null
+  owner_name?: string | null
+  owner_phone?: string | null
+  vehicle_type?: string | null
+  make_model?: string | null
+  color?: string | null
+  registered_at?: string | null
+  notes?: string | null
+}
+export interface VehiclePatchPayload extends Partial<VehicleCreatePayload> {
+  active?: boolean
+}
+
+// Parking P2 — violation types accepted by /complaints (whitelist
+// mirrors backend complaint_service.VIOLATION_TYPES).
+export const VIOLATION_TYPES = [
+  'no_parking_zone',
+  'blocking_fire_exit',
+  'double_parked',
+  'expired_permit',
+  'unauthorized_visitor',
+  'wrong_slot',
+  'other',
+] as const
+
 // E1b' / E3d — vendor directory (society-vetted contractors opted in
 // to personal-job referrals, with click-to-chat WhatsApp deep links).
 export interface Vendor {
@@ -407,6 +457,33 @@ export const api = {
     req<{ cleared: number }>(
       `/api/v1/admin/permissions/overrides?role=${encodeURIComponent(role)}&permission=${encodeURIComponent(permission)}`,
       { method: 'DELETE' }
+    ),
+  // Parking P1 — vehicles registry
+  listVehicles: (includeInactive = false, plateSearch?: string) => {
+    const q = new URLSearchParams()
+    if (includeInactive) q.set('include_inactive', 'true')
+    if (plateSearch) q.set('plate_search', plateSearch)
+    const qs = q.toString() ? `?${q}` : ''
+    return req<Vehicle[]>(`/api/v1/vehicles${qs}`)
+  },
+  getVehicle: (id: number) => req<Vehicle>(`/api/v1/vehicles/${id}`),
+  createVehicle: (body: VehicleCreatePayload) =>
+    req<Vehicle>('/api/v1/vehicles', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateVehicle: (id: number, body: VehiclePatchPayload) =>
+    req<Vehicle>(`/api/v1/vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deactivateVehicle: (id: number) =>
+    req<Vehicle>(`/api/v1/vehicles/${id}`, { method: 'DELETE' }),
+  // Parking P4 — clamping authorization
+  authorizeClamping: (complaintId: number) =>
+    req<Complaint>(
+      `/api/v1/complaints/${complaintId}/authorize-clamping`,
+      { method: 'POST' }
     ),
 }
 
