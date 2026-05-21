@@ -48,11 +48,17 @@ Three independent layers — any one alone is sufficient:
    `escalated_to_*_at`). The cron's `_OPEN_STATES` filter at
    `backend/app/services/jobs_service.py:24` skips them entirely.
 
-2. **Reserved test-phone range:** all synthetic people use phone numbers
-   in the prefix range `+919900000xx`, `+919900001xx`, `+919900002xx`
-   (env-overridable via `AIBUILDCARE_TEST_PHONE_PREFIXES`). The Twilio /
-   SendGrid chokepoint in `backend/app/services/notify.py` short-circuits
-   to a logged `TEST_PHONE_SKIPPED` event for any number in this range.
+2. **Reserved test-phone range:** all synthetic people use 10-digit
+   Indian mobiles in the test range `+91 99000 XXXXX`. The 5-digit
+   local part is banded by role for operator log readability:
+   `+91 99000 0NNNN` users, `+91 99000 1NNNN` staff, `+91 99000 2NNNN`
+   contractors, `+91 99000 3NNNN` vehicle owners (non-user). Within each
+   band, society-offset blocks of 250 keep numbers globally unique
+   (Greenwood 0000-0249 / Sunrise 0250-0499 / Stellar 0500-0749 /
+   Meridian 0750-0999). The chokepoint in
+   `backend/app/services/notify.py` (Part 4) will short-circuit to a
+   logged `TEST_PHONE_SKIPPED` event for any number whose prefix matches
+   `AIBUILDCARE_TEST_PHONE_PREFIXES` (default: `+919900`).
 
 3. **Seeding lock env (`AIBUILDCARE_SEEDING_LOCK=1`):** when set, the
    `/internal/jobs/tick` route returns 202 immediately without running
