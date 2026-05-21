@@ -1,0 +1,118 @@
+{
+  "_meta": {
+    "sid": 100,
+    "is_demo": 1,
+    "overlay_on": "greenwood_residency.json",
+    "description": "Parking scenario overlay for Greenwood Residency (sid=100). Provides registered vehicles, slot allocations, violation type catalog, and DETERMINISTIC repeat-offender plates for testing the 5th-major-incident heuristic + clamping authorization flow.",
+    "design_notes": [
+      "Parking is a complaint category WITHIN Greenwood, not a separate tenant. The seeder inserts vehicles into `vehicles` (society_id=100), allocates slots, and produces historical complaints with category='Parking Management' linked via vehicle_plate.",
+      "All vehicle plates use the Indian format STATE-DISTRICT-LETTERS-NUMBERS (e.g. MH-12-AB-1234). Plates are clearly synthetic — the LETTERS field uses 'ZZ' or 'XX' or 'ZX' in the repeat-offender plates so a human reading the dashboard can spot them at a glance.",
+      "All owner phones use the reserved test-phone range +9199000XXXXX per Part 0-B Layer 2. Clamping notifications will short-circuit at the Twilio chokepoint and log TEST_PHONE_SKIPPED."
+    ]
+  },
+  "slot_inventory": {
+    "basement_A": {
+      "slots": "A-001 to A-040",
+      "type": "residential_allocated",
+      "allocation_rule": "one slot per occupied unit, allocated by unit-purchase order"
+    },
+    "basement_B": {
+      "slots": "B-001 to B-040",
+      "type": "residential_allocated",
+      "allocation_rule": "one slot per occupied unit"
+    },
+    "visitor": {
+      "slots": "V-001 to V-008",
+      "type": "visitor",
+      "rules": "max 4 hours; expired_visitor violation after 4h",
+      "_note": "Visitor slots are first-come; not allocated to any unit."
+    },
+    "ev_charging": {
+      "slots": "EV-001 to EV-004",
+      "type": "ev_only",
+      "rules": "EV vehicles only; ICE vehicle parked here = ev_lane_misuse violation"
+    },
+    "fire_lane": {
+      "slots": "FL-MARKED",
+      "type": "no_parking",
+      "rules": "any vehicle stationary here = fire_lane violation, immediate clamping eligibility"
+    },
+    "handicap": {
+      "slots": "HP-001 to HP-002",
+      "type": "handicap_only",
+      "rules": "non-permit holder parked here = hp_lane_misuse violation"
+    }
+  },
+  "violation_types": [
+    {"key": "blocking_exit",        "severity": "high",   "auto_clamp_eligible": true,  "description": "Vehicle blocks tower exit ramp or emergency egress"},
+    {"key": "wrong_slot",           "severity": "low",    "auto_clamp_eligible": false, "description": "Parked in another resident's allocated slot"},
+    {"key": "no_parking_zone",      "severity": "normal", "auto_clamp_eligible": false, "description": "Parked outside marked slots in driveway / lobby area"},
+    {"key": "expired_visitor",      "severity": "normal", "auto_clamp_eligible": false, "description": "Visitor vehicle exceeded 4-hour limit in visitor slot"},
+    {"key": "unauthorized_overnight","severity": "normal","auto_clamp_eligible": false, "description": "Non-resident vehicle parked overnight without registration"},
+    {"key": "fire_lane",            "severity": "urgent", "auto_clamp_eligible": true,  "description": "Vehicle in marked fire lane — immediate clamping authorized"},
+    {"key": "hp_lane_misuse",       "severity": "high",   "auto_clamp_eligible": true,  "description": "Non-permit vehicle in handicap slot"},
+    {"key": "ev_lane_misuse",       "severity": "low",    "auto_clamp_eligible": false, "description": "ICE vehicle in EV-charging slot"},
+    {"key": "noise_horn",           "severity": "low",    "auto_clamp_eligible": false, "description": "Persistent horn use / loud music in parking area"}
+  ],
+  "registered_vehicles_to_seed": {
+    "_note": "Counts only — actual plate generation happens in Part 2 from synthetic-people deterministic seed. Plates use MH-XX-{LL}-{NNNN} format where district = 12 (Pune Borivali) and LL randomized.",
+    "total_vehicles": 50,
+    "by_type": {
+      "car_sedan":     22,
+      "car_suv":       12,
+      "car_hatchback":  8,
+      "two_wheeler":    6,
+      "ev_car":         2
+    },
+    "distribution": "one registered vehicle per ~25 of 50 seeded units (i.e. ~half of seeded units have 1 vehicle, ~quarter have 2 vehicles)"
+  },
+  "deterministic_repeat_offender_plates": {
+    "_note": "Three plates deliberately seeded with ≥3 violations in the past 30 days each — exercises the 5th-major-incident heuristic + clamping authorization flow. These are FIXED plates (not random) so testers can verify the same scenario each reseed.",
+    "plates": [
+      {
+        "plate": "MH-12-ZZ-0001",
+        "owner_unit": "A-3B",
+        "owner_phone": "+919900000301",
+        "vehicle_type": "car_sedan",
+        "violations_seeded": [
+          {"days_ago": 28, "type": "blocking_exit",    "status": "resolved"},
+          {"days_ago": 14, "type": "wrong_slot",       "status": "resolved"},
+          {"days_ago":  3, "type": "blocking_exit",    "status": "resolved", "_note": "★ 3rd violation in 30 days → 5th-major-incident heuristic should auto-flag"}
+        ],
+        "expected_system_behavior": "should appear in 'repeat offenders' admin view; resolved status means the cron will NOT re-escalate or re-notify"
+      },
+      {
+        "plate": "MH-12-XX-0007",
+        "owner_unit": "B-7A",
+        "owner_phone": "+919900000307",
+        "vehicle_type": "car_suv",
+        "violations_seeded": [
+          {"days_ago": 22, "type": "no_parking_zone",  "status": "resolved"},
+          {"days_ago": 18, "type": "no_parking_zone",  "status": "resolved"},
+          {"days_ago":  9, "type": "fire_lane",        "status": "resolved", "clamping_authorized": true, "_note": "Fire lane = auto-clamp-eligible; clamping was authorized historically"}
+        ],
+        "expected_system_behavior": "demonstrates the clamping-authorization audit trail; clamped=1 in vehicles table"
+      },
+      {
+        "plate": "MH-12-ZX-0013",
+        "owner_unit": "VISITOR",
+        "owner_phone": "+919900001013",
+        "vehicle_type": "two_wheeler",
+        "violations_seeded": [
+          {"days_ago": 25, "type": "expired_visitor",  "status": "resolved"},
+          {"days_ago": 11, "type": "expired_visitor",  "status": "resolved"},
+          {"days_ago":  6, "type": "unauthorized_overnight", "status": "resolved"}
+        ],
+        "expected_system_behavior": "demonstrates VISITOR-class repeat offender; owner is not a resident; system should still trigger 5th-major-incident flag"
+      }
+    ]
+  },
+  "live_test_plates": {
+    "_note": "These plates are RESERVED for the tester to use during live testing. The tester logs in, files a fresh parking complaint for one of these plates, and verifies the system's REAL-TIME behavior (not historical seeded data). Cron WILL fire for these.",
+    "plates_reserved_for_live_testing": [
+      {"plate": "MH-12-TT-0001", "purpose": "Single-violation happy-path test (file complaint → owner notified → resolved → rated)"},
+      {"plate": "MH-12-TT-0002", "purpose": "Repeat-offender escalation test (file 3 complaints in quick succession → verify 5th-major-incident trigger fires)"},
+      {"plate": "MH-12-TT-0003", "purpose": "Fire-lane auto-clamp test (file fire_lane violation → verify immediate clamping-authorized state)"}
+    ]
+  }
+}

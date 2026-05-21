@@ -1,0 +1,143 @@
+{
+  "_meta": {
+    "sid": 101,
+    "is_demo": 1,
+    "vertical": "hospital_facility",
+    "description": "Sunrise Nursing Home — demo hospital facility. 3 wings, ~50 inpatient beds + ICU + 4 OTs + diagnostics. Doubles as an onboarding template for any small-to-mid hospital.",
+    "design_notes": [
+      "★ PATIENTS ARE DELIBERATELY NOT MODELED. This is a facilities-management deployment — complaints route on (wing, room, bed, department), never on patient name or ID. See README.md 'Hospital DPDP design decision' for the full reasoning.",
+      "Effect: patient names / IDs / health context are never written to complaints.text, never sent to Anthropic (parser), never sent to Sarvam (STT/TTS), and never stored in this DB. Eliminates a class of DPDP Act 2023 compliance surface.",
+      "Effect: patient-churn (admissions, discharges, transfers) is ENTIRELY out of scope. We do not model occupancy. Complaints are about the physical infrastructure — 'ICU-101-B2 nurse-call button broken', not 'patient X's call button'.",
+      "Routing key shape: '{wing}-{dept}-{room}-{bed}' or '{wing}-{dept}-{room}' for non-bed spaces (OT, lab, pharmacy). Stored in the existing `units.unit_number` column — no schema change needed."
+    ]
+  },
+  "society": {
+    "name": "Sunrise Nursing Home",
+    "address": "Plot 14, Healthcare Park, Andheri East, Mumbai 400069",
+    "timezone": "Asia/Kolkata",
+    "bed_count_total": 60,
+    "ot_count": 4
+  },
+  "structure": {
+    "wings": [
+      {
+        "id": "A", "name": "Wing A — Inpatient Wards",
+        "floors": [
+          {"floor": 1, "department": "General Ward",    "rooms": 12, "beds_per_room": 2},
+          {"floor": 2, "department": "Private Wards",   "rooms": 10, "beds_per_room": 1},
+          {"floor": 3, "department": "Maternity Ward",  "rooms": 8,  "beds_per_room": 1},
+          {"floor": 4, "department": "Paediatric Ward", "rooms": 8,  "beds_per_room": 2}
+        ]
+      },
+      {
+        "id": "B", "name": "Wing B — Critical Care",
+        "floors": [
+          {"floor": 1, "department": "Emergency",       "rooms": 4, "beds_per_room": 2, "shared_observation_bays": true},
+          {"floor": 2, "department": "ICU",             "rooms": 8, "beds_per_room": 1},
+          {"floor": 2, "department": "NICU",            "rooms": 6, "beds_per_room": 1, "_note": "Incubators tracked as beds for facility-routing purposes only."},
+          {"floor": 3, "department": "OT",              "rooms": 4, "beds_per_room": 0, "_note": "Operating theatres — no patient beds; tracked as rooms."}
+        ]
+      },
+      {
+        "id": "C", "name": "Wing C — Diagnostics + Admin",
+        "floors": [
+          {"floor": 1, "department": "Reception",         "rooms": 1, "beds_per_room": 0},
+          {"floor": 1, "department": "Pharmacy",          "rooms": 1, "beds_per_room": 0},
+          {"floor": 1, "department": "Lab",               "rooms": 2, "beds_per_room": 0},
+          {"floor": 1, "department": "X-ray",             "rooms": 1, "beds_per_room": 0},
+          {"floor": 2, "department": "MRI",               "rooms": 1, "beds_per_room": 0},
+          {"floor": 2, "department": "CT",                "rooms": 1, "beds_per_room": 0},
+          {"floor": 2, "department": "Admin Office",      "rooms": 4, "beds_per_room": 0}
+        ]
+      }
+    ],
+    "unit_naming_pattern": "{wing}-{dept_short}-{room}[-B{bed}]  (e.g. B-ICU-101-B1; A-GW-204-B2; C-PHARM)",
+    "units_to_seed": 70
+  },
+  "categories": [
+    {"name": "Patient Room AC",            "priority_default": "high",   "common": true},
+    {"name": "Bed/Mattress Issue",         "priority_default": "normal", "common": true},
+    {"name": "Nurse Call System",          "priority_default": "urgent", "common": true},
+    {"name": "Pharmacy Stock-Out",         "priority_default": "high",   "common": true},
+    {"name": "Equipment Calibration",      "priority_default": "high",   "common": false},
+    {"name": "Medical Gas / Oxygen",       "priority_default": "urgent", "common": false},
+    {"name": "Linen / Laundry",            "priority_default": "normal", "common": true},
+    {"name": "Food Service / Diet",        "priority_default": "normal", "common": true},
+    {"name": "Cleanliness — Critical Area","priority_default": "urgent", "common": true, "_note": "ICU / OT / NICU sanitation"},
+    {"name": "Cleanliness — General",      "priority_default": "normal", "common": true},
+    {"name": "Plumbing — Critical Area",   "priority_default": "urgent", "common": false},
+    {"name": "Plumbing — General",         "priority_default": "normal", "common": true},
+    {"name": "Electrical — Critical Area", "priority_default": "urgent", "common": false},
+    {"name": "Electrical — General",       "priority_default": "normal", "common": true},
+    {"name": "Lift Down",                  "priority_default": "high",   "common": true},
+    {"name": "Wheelchair / Stretcher",     "priority_default": "normal", "common": true},
+    {"name": "Biomedical Waste",           "priority_default": "high",   "common": true},
+    {"name": "Pest Control",               "priority_default": "high",   "common": false},
+    {"name": "Fire Safety",                "priority_default": "urgent", "common": false},
+    {"name": "Security Incident",          "priority_default": "urgent", "common": false},
+    {"name": "IT / Patient Records System","priority_default": "high",   "common": false, "_note": "Routing only — no record content goes through this complaint platform."},
+    {"name": "HVAC — Critical Area",       "priority_default": "urgent", "common": false},
+    {"name": "HVAC — Ward",                "priority_default": "normal", "common": true},
+    {"name": "Generator / Power Backup",   "priority_default": "urgent", "common": false},
+    {"name": "Other",                      "priority_default": "low",    "common": true}
+  ],
+  "staff_roles": [
+    {"role_key": "hospital_director",     "title": "Hospital Director",     "count": 1, "in_chain": true,  "chain_level": 4},
+    {"role_key": "medical_superintendent","title": "Medical Superintendent","count": 1, "in_chain": true,  "chain_level": 3},
+    {"role_key": "nursing_supervisor",    "title": "Nursing Supervisor",    "count": 1, "in_chain": true,  "chain_level": 2},
+    {"role_key": "ward_admin",            "title": "Ward Administrator",    "count": 1, "in_chain": true,  "chain_level": 1},
+    {"role_key": "biomedical_engineer",   "title": "Biomedical Engineer",   "count": 1, "in_chain": false, "category_specialty": "Equipment Calibration"},
+    {"role_key": "pharmacy_assistant",    "title": "Pharmacy Assistant",    "count": 1, "in_chain": false, "category_specialty": "Pharmacy Stock-Out"},
+    {"role_key": "helpdesk_agent",        "title": "IT Helpdesk Agent",     "count": 1, "in_chain": false, "category_specialty": "IT / Patient Records System"},
+    {"role_key": "housekeeping_supervisor","title": "Housekeeping Supervisor","count": 1,"in_chain": false, "category_specialty": "Cleanliness — General"},
+    {"role_key": "housekeeper",           "title": "Housekeeper",           "count": 3, "in_chain": false, "category_specialty": "Cleanliness — General"},
+    {"role_key": "security_supervisor",   "title": "Security Supervisor",   "count": 1, "in_chain": false, "category_specialty": "Security Incident"},
+    {"role_key": "security_guard",        "title": "Security Guard",        "count": 2, "in_chain": false, "category_specialty": "Security Incident"},
+    {"role_key": "electrician_inhouse",   "title": "In-House Electrician",  "count": 1, "in_chain": false, "category_specialty": "Electrical — General"},
+    {"role_key": "plumber_inhouse",       "title": "In-House Plumber",      "count": 1, "in_chain": false, "category_specialty": "Plumbing — General"}
+  ],
+  "churn_seeds": {
+    "_note": "Part 0-E — visible lifecycle cases. Hospital-specific: a biomedical engineer who left holding open OT-equipment tickets is a particularly nasty orphan.",
+    "deactivated_staff": [
+      {"role_key": "biomedical_engineer", "name_hint": "Departed BME #1", "holds_open_complaints_at_deactivation": 2, "reason": "transferred to sister facility 2026-04-22"},
+      {"role_key": "housekeeper",         "name_hint": "Departed housekeeper #1", "holds_open_complaints_at_deactivation": 1, "reason": "resigned 2026-05-01"}
+    ],
+    "retired_contractor": {"category": "Medical Gas / Oxygen", "vendor_name": "OxyMed Supplies (contract ended)", "holds_open_jobs_at_retirement": 1, "reason": "contract not renewed 2026-04-30"}
+  },
+  "escalation_chain": [
+    {"level": 1, "role_key": "ward_admin"},
+    {"level": 2, "role_key": "nursing_supervisor"},
+    {"level": 3, "role_key": "medical_superintendent"},
+    {"level": 4, "role_key": "hospital_director"}
+  ],
+  "sla_config": {
+    "_note": "Ultra-short demo SLAs. In a real hospital these would be MUCH tighter for safety-critical categories — Medical Gas / Nurse Call System / Fire Safety should be minutes-not-hours even in production.",
+    "default": {
+      "target_response_time_minutes": 1,
+      "target_resolution_time_hours": 0.05,
+      "priority_high_multiplier": 0.5,
+      "escalation_levels": {
+        "1": {"after_hours": 0.033, "notify": "ward_admin"},
+        "2": {"after_hours": 0.066, "notify": "nursing_supervisor"},
+        "3": {"after_hours": 0.1,   "notify": "medical_superintendent"}
+      }
+    },
+    "overrides": {
+      "Medical Gas / Oxygen":        {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.008},
+      "Nurse Call System":           {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Cleanliness — Critical Area": {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Fire Safety":                 {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.008}
+    }
+  },
+  "contractor_specialties": [
+    {"category": "HVAC — Critical Area",    "vendor_name": "ColdChain Healthcare HVAC",     "rating": 4.6, "count": 1},
+    {"category": "Equipment Calibration",   "vendor_name": "MedTech Service Solutions",     "rating": 4.4, "count": 1},
+    {"category": "Medical Gas / Oxygen",    "vendor_name": "PureAir Medical Gases",         "rating": 4.7, "count": 1},
+    {"category": "Lift Down",               "vendor_name": "HospiLift AMC",                 "rating": 4.5, "count": 1},
+    {"category": "Pest Control",            "vendor_name": "BioShield Pest (hospital-grade)","rating": 4.3, "count": 1},
+    {"category": "IT / Patient Records System","vendor_name": "MediSys IT Support",         "rating": 4.0, "count": 1},
+    {"category": "Linen / Laundry",         "vendor_name": "WhiteWash Hospital Linen",      "rating": 4.1, "count": 1},
+    {"category": "Food Service / Diet",     "vendor_name": "Aahar Hospital Catering",       "rating": 3.9, "count": 1},
+    {"category": "Biomedical Waste",        "vendor_name": "EcoSafe Biomedical Disposal",   "rating": 4.6, "count": 1}
+  ]
+}

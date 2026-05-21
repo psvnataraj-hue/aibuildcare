@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS societies (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
     address     TEXT,
+    is_demo     INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT to_char((now() at time zone 'utc'), 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')
 );
 

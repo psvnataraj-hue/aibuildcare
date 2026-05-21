@@ -1,0 +1,110 @@
+{
+  "_meta": {
+    "sid": 102,
+    "is_demo": 1,
+    "vertical": "event_company",
+    "description": "Stellar Events — demo event management company. ~5 concurrent active events of varying scale (wedding, corporate AGM, college fest, product launch, sangeet). Doubles as an onboarding template for any event-management or run-of-show ops company.",
+    "design_notes": [
+      "★ Different shape from residential/hospital: there are no fixed 'units' here. Each ACTIVE EVENT is treated as a unit (mapped into the existing `units` table with unit_number like 'EVT-2026-05-25-Wedding-Worli'). Complaints route on the event + the role lead within that event.",
+      "Event lifecycle: an event is created days before, active during run-of-show, and closed within ~24h of conclusion. For seeding purposes we use 'active' events with realistic dates spanning -90 to +14 days from seed-time.",
+      "Specialty roles (AV, Lighting, Catering, Decor, Security) are scoped per-event in real ops — for the seeder we map them as 'staff with category_specialty' since the schema doesn't model event-scoping. Acknowledged simplification."
+    ]
+  },
+  "society": {
+    "name": "Stellar Events",
+    "address": "402 Marigold Business Hub, Lower Parel, Mumbai 400013",
+    "timezone": "Asia/Kolkata",
+    "primary_service_area": "Mumbai + Pune + Goa"
+  },
+  "structure": {
+    "active_events": [
+      {"event_id": "EVT-2026-05-25-Wedding-Worli",     "type": "wedding",         "date": "2026-05-25", "venue": "Sea View Banquet, Worli",       "guest_count": 450, "crew_size": 35, "status": "upcoming"},
+      {"event_id": "EVT-2026-05-22-AGM-BKC",           "type": "corporate_agm",   "date": "2026-05-22", "venue": "Trident BKC",                   "guest_count": 220, "crew_size": 18, "status": "active_today"},
+      {"event_id": "EVT-2026-06-08-CollegeFest-Pune",  "type": "college_fest",    "date": "2026-06-08", "venue": "Symbiosis Lavale Campus",       "guest_count": 1800,"crew_size": 50, "status": "upcoming"},
+      {"event_id": "EVT-2026-05-18-Launch-NCPA",       "type": "product_launch",  "date": "2026-05-18", "venue": "NCPA Mumbai",                   "guest_count": 180, "crew_size": 22, "status": "recently_closed"},
+      {"event_id": "EVT-2026-05-24-Sangeet-Goa",       "type": "sangeet",         "date": "2026-05-24", "venue": "Taj Aguada Goa",                "guest_count": 120, "crew_size": 28, "status": "upcoming"}
+    ],
+    "unit_naming_pattern": "Each active event is one 'unit'. unit_number = event_id (e.g. EVT-2026-05-25-Wedding-Worli).",
+    "units_to_seed": 5
+  },
+  "categories": [
+    {"name": "AV / Sound",                "priority_default": "high",   "common": true},
+    {"name": "Lighting",                  "priority_default": "high",   "common": true},
+    {"name": "Stage Setup",               "priority_default": "high",   "common": true},
+    {"name": "Catering — Food Quality",   "priority_default": "high",   "common": true},
+    {"name": "Catering — Service Delay",  "priority_default": "high",   "common": true},
+    {"name": "Decor",                     "priority_default": "normal", "common": true},
+    {"name": "Floral / Bridal Suite",     "priority_default": "normal", "common": true},
+    {"name": "Photography / Videography", "priority_default": "high",   "common": true},
+    {"name": "Security",                  "priority_default": "urgent", "common": true},
+    {"name": "Transport / Logistics",     "priority_default": "high",   "common": true},
+    {"name": "Vendor No-Show",            "priority_default": "urgent", "common": false},
+    {"name": "Equipment Broken",          "priority_default": "high",   "common": true},
+    {"name": "Power / Generator",         "priority_default": "urgent", "common": false},
+    {"name": "Crew Shortage / No-Show",   "priority_default": "high",   "common": true},
+    {"name": "Schedule Slip",             "priority_default": "high",   "common": true},
+    {"name": "Permit / Authority Issue",  "priority_default": "urgent", "common": false},
+    {"name": "Client Complaint",          "priority_default": "high",   "common": true},
+    {"name": "Safety Incident",           "priority_default": "urgent", "common": false},
+    {"name": "Pyrotechnics / SFX",        "priority_default": "urgent", "common": false},
+    {"name": "Backstage / Green Room",    "priority_default": "normal", "common": true},
+    {"name": "Hostess / Usher",           "priority_default": "low",    "common": true},
+    {"name": "Other",                     "priority_default": "low",    "common": true}
+  ],
+  "staff_roles": [
+    {"role_key": "md",                "title": "Managing Director",         "count": 1, "in_chain": true,  "chain_level": 4},
+    {"role_key": "operations_head",   "title": "Head of Operations",        "count": 1, "in_chain": true,  "chain_level": 3},
+    {"role_key": "sr_event_manager",  "title": "Senior Event Manager",      "count": 1, "in_chain": true,  "chain_level": 2},
+    {"role_key": "event_manager",     "title": "Event Manager",             "count": 2, "in_chain": true,  "chain_level": 1},
+    {"role_key": "av_lead",           "title": "AV / Sound Lead",           "count": 1, "in_chain": false, "category_specialty": "AV / Sound"},
+    {"role_key": "lighting_lead",     "title": "Lighting Lead",             "count": 1, "in_chain": false, "category_specialty": "Lighting"},
+    {"role_key": "catering_lead",     "title": "Catering Lead",             "count": 1, "in_chain": false, "category_specialty": "Catering — Food Quality"},
+    {"role_key": "decor_lead",        "title": "Decor Lead",                "count": 1, "in_chain": false, "category_specialty": "Decor"},
+    {"role_key": "security_lead",     "title": "Security Lead",             "count": 1, "in_chain": false, "category_specialty": "Security"},
+    {"role_key": "transport_coordinator","title": "Transport Coordinator",  "count": 1, "in_chain": false, "category_specialty": "Transport / Logistics"},
+    {"role_key": "runner",            "title": "Event Runner",              "count": 3, "in_chain": false}
+  ],
+  "churn_seeds": {
+    "_note": "Event ops has high crew churn — a runner who quit mid-fest with 4 open backstage tickets is a realistic and brutal orphan case.",
+    "deactivated_staff": [
+      {"role_key": "runner",        "name_hint": "Departed runner #1", "holds_open_complaints_at_deactivation": 4, "reason": "walked off mid-event 2026-05-10"},
+      {"role_key": "av_lead",       "name_hint": "Departed AV lead",   "holds_open_complaints_at_deactivation": 2, "reason": "moved to competitor 2026-04-28"}
+    ],
+    "retired_contractor": {"category": "Pyrotechnics / SFX", "vendor_name": "SkyFire SFX (licence lapsed)", "holds_open_jobs_at_retirement": 1, "reason": "licence not renewed 2026-04-15"}
+  },
+  "escalation_chain": [
+    {"level": 1, "role_key": "event_manager"},
+    {"level": 2, "role_key": "sr_event_manager"},
+    {"level": 3, "role_key": "operations_head"},
+    {"level": 4, "role_key": "md"}
+  ],
+  "sla_config": {
+    "_note": "Event ops has the shortest natural SLAs of any vertical — a sound failure during a wedding ceremony is a 30-second problem, not a 2-minute one. Demo values stay at 2/4/6 min for testability, but production tenants should consider sub-minute thresholds on AV/Lighting/Power.",
+    "default": {
+      "target_response_time_minutes": 1,
+      "target_resolution_time_hours": 0.05,
+      "priority_high_multiplier": 0.5,
+      "escalation_levels": {
+        "1": {"after_hours": 0.033, "notify": "event_manager"},
+        "2": {"after_hours": 0.066, "notify": "sr_event_manager"},
+        "3": {"after_hours": 0.1,   "notify": "operations_head"}
+      }
+    },
+    "overrides": {
+      "AV / Sound":         {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017},
+      "Power / Generator":  {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.008},
+      "Safety Incident":    {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.008},
+      "Vendor No-Show":     {"target_response_time_minutes": 1, "target_resolution_time_hours": 0.017}
+    }
+  },
+  "contractor_specialties": [
+    {"category": "AV / Sound",          "vendor_name": "SoundForge Productions",     "rating": 4.6, "count": 1},
+    {"category": "Lighting",            "vendor_name": "LightCanvas Rigs",           "rating": 4.5, "count": 1},
+    {"category": "Catering — Food Quality","vendor_name": "Saffron Banquet Catering","rating": 4.3, "count": 1},
+    {"category": "Decor",               "vendor_name": "BlossomDecor",               "rating": 4.4, "count": 1},
+    {"category": "Photography / Videography","vendor_name": "FrameOne Studios",      "rating": 4.7, "count": 1},
+    {"category": "Security",            "vendor_name": "EventGuard Security Agency", "rating": 4.2, "count": 1},
+    {"category": "Transport / Logistics","vendor_name": "MoveFast Event Logistics",  "rating": 4.1, "count": 1},
+    {"category": "Power / Generator",   "vendor_name": "PowerHaul Generators",       "rating": 4.5, "count": 1}
+  ]
+}
