@@ -5,14 +5,27 @@ Fallback path: deterministic rule-based parser used when no API key is
 configured (offline CI, cost control). The fallback is first-class - it
 handles the Hinglish/typo cases the product needs, so a complaint is never
 dropped on LLM failure.
+
+Post-LLM hardening (2026-05-21):
+  - Unit-number hallucination guard: if the LLM returns a unit_number
+    that doesn't appear in the source text AND no photo was attached
+    AND the rule extractor finds a text-anchored unit, prefer the rule
+    extractor. This caught a real prod miss where "5B AC kharab hai
+    urgent" got parsed to unit_number=203.
+  - Priority ceiling: take max(llm_priority, rule_priority) where
+    urgent > high > normal. The LLM downgrading clearly-marked
+    urgency words (e.g. "urgent") is worse than over-flagging.
 """
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from ..config import get_settings
 from ..schemas import ParsedComplaint
+
+log = logging.getLogger("aibuildcare.parser")
 
 CATEGORIES = [
     # safety-critical
@@ -198,14 +211,20 @@ _SYSTEM = (
     "Gujarati, Punjabi, Kannada, Tamil, Telugu or Malayalam, in native "
     "script or transliteration, with typos. If photos are attached, also "
     "judge severity and safety from what you see. "
-    "Return ONLY a JSON object with keys: unit_number (string or null), "
+    "Return ONLY a JSON object with keys: unit_number (string or null - "
+    "EXTRACT VERBATIM from the resident's message or photo; do not invent "
+    "or normalize. Examples: '5B', 'A-101', '12', 'Flat 7C' -> '7C'. If "
+    "the message has no unit reference, return null. Never substitute a "
+    "different number), "
     f"category (one of {CATEGORIES}), priority (one of "
     '["normal","high","urgent"]; raise it if a photo shows severe/unsafe '
-    "damage), detected_language (one of english, hindi, hinglish, marathi, "
-    "gujarati, punjabi, kannada, tamil, telugu, malayalam), acknowledgement "
-    "(a short, warm, human-sounding confirmation written in the SAME "
-    "language and script the resident used, with no ticket number). "
-    "No prose, JSON only."
+    "damage; if the resident writes 'urgent', 'emergency', 'asap', "
+    "'turant', 'jaldi' or similar, return 'urgent' - do not downgrade "
+    "their stated urgency), detected_language (one of english, hindi, "
+    "hinglish, marathi, gujarati, punjabi, kannada, tamil, telugu, "
+    "malayalam), acknowledgement (a short, warm, human-sounding "
+    "confirmation written in the SAME language and script the resident "
+    "used, with no ticket number). No prose, JSON only."
 )
 
 
@@ -224,6 +243,63 @@ def _build_system(langs: list[str]) -> str:
         f"in that language regardless of the resident's language: {names}. "
         "Still return JSON only."
     )
+
+
+_PRIORITY_RANK = {"normal": 0, "high": 1, "urgent": 2}
+
+
+def _unit_in_text(unit: str, text: str) -> bool:
+    """Loose substring match: LLM-returned units may differ in casing
+    or have surrounding whitespace stripped (e.g. '5 B' -> '5B'). We
+    accept either the literal form or the normalised (no-whitespace,
+    no-dash) form being present in the source."""
+    if not unit or not text:
+        return False
+    needle = re.sub(r"[\s\-]", "", unit).lower()
+    haystack = re.sub(r"[\s\-]", "", text).lower()
+    return needle in haystack
+
+
+def _guard_unit(
+    llm_unit: str | None, text: str, has_image: bool,
+) -> str | None:
+    """Hallucination guard: if the LLM returned a unit that doesn't
+    appear in the source text AND no image was attached (units in
+    photos can't be re-derived from text), prefer the rule-based
+    extractor when it finds one. Returns the final unit_number."""
+    if not llm_unit:
+        return _extract_unit(text) if text else None
+    if has_image:
+        return llm_unit  # cannot validate against text alone
+    if _unit_in_text(llm_unit, text):
+        return llm_unit  # LLM unit is present in text - trust it
+    rule_unit = _extract_unit(text)
+    if rule_unit:
+        log.warning(
+            "parser: LLM unit_number %r not found in text; "
+            "overriding with rule-extracted %r. text=%r",
+            llm_unit, rule_unit, text[:120],
+        )
+        return rule_unit
+    # No rule unit either - trust the LLM (might be a unit in an
+    # unusual format we don't capture in the regex).
+    return llm_unit
+
+
+def _ceiling_priority(llm_priority: str, text: str) -> str:
+    """Take max(llm_priority, rule_priority) so the LLM cannot
+    downgrade urgency words the resident explicitly used."""
+    rule_priority = _priority(text)
+    lp = _PRIORITY_RANK.get(llm_priority, 0)
+    rp = _PRIORITY_RANK.get(rule_priority, 0)
+    if rp > lp:
+        log.warning(
+            "parser: LLM priority %r downgraded resident's stated "
+            "urgency; raising to %r. text=%r",
+            llm_priority, rule_priority, text[:120],
+        )
+        return rule_priority
+    return llm_priority
 
 
 def _llm_parse(
@@ -264,10 +340,18 @@ def _llm_parse(
         for c in langs
         if isinstance(raw_sum, dict) and raw_sum.get(c)
     }
+    final_unit = _guard_unit(
+        data.get("unit_number") or None,
+        text,
+        has_image=bool(image_urls),
+    )
+    final_priority = _ceiling_priority(
+        data.get("priority", "normal"), text,
+    )
     return ParsedComplaint(
-        unit_number=data.get("unit_number") or None,
+        unit_number=final_unit,
         category=cat,
-        priority=data.get("priority", "normal"),
+        priority=final_priority,
         acknowledgement=data.get("acknowledgement", ""),
         detected_language=data.get("detected_language"),
         official_summaries=summaries,
