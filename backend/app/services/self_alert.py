@@ -86,7 +86,7 @@ def _operator_phone() -> str | None:
         with get_conn() as conn:
             row = conn.execute(
                 "SELECT phone FROM escalation_hierarchy "
-                "WHERE society_id = 1 AND level = 1 "
+                "WHERE society_id = 1 AND escalation_level = 1 "
                 "AND active = 1 AND whatsapp_enabled = 1 "
                 "ORDER BY id LIMIT 1"
             ).fetchone()
