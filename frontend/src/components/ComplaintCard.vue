@@ -30,6 +30,7 @@ import {
   User,
   AlertTriangle,
   TrendingUp,
+  Lock,
 } from 'lucide-vue-next'
 import Card from './ui/Card.vue'
 import Badge from './ui/Badge.vue'
@@ -115,6 +116,10 @@ const escalationLabel = computed(() => {
 
 // E2d — major-incident is a 0/1 integer column on the complaint row.
 const isMajorIncident = computed(() => !!props.c.major_incident)
+
+// P4 — surface clamped state on the card so staff can spot enforced
+// parking tickets at a glance without opening the detail.
+const isClamped = computed(() => !!props.c.clamped)
 </script>
 
 <template>
@@ -163,6 +168,17 @@ const isMajorIncident = computed(() => !!props.c.major_incident)
             c.status.replace('_', ' ')
           }}</Badge>
           <Badge :variant="c.priority">{{ c.priority }}</Badge>
+          <!-- P4 — CLAMPED badge for parking complaints whose
+               vehicle has been clamped. Renders before the
+               escalation pill so the enforcement state is the
+               most-prominent signal after status/priority. -->
+          <span
+            v-if="isClamped"
+            class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset bg-red-600 text-white ring-red-700/40"
+          >
+            <Lock class="h-3.5 w-3.5" />
+            Clamped
+          </span>
           <!-- E1c/E2a: escalation badge — color escalates from amber
                (L1) to red (L4). Only shows once escalation has fired. -->
           <span

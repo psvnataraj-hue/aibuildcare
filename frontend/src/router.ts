@@ -12,6 +12,7 @@ import Settings from './views/Settings.vue'
 import Staff from './views/Staff.vue'
 import Hierarchy from './views/Hierarchy.vue'
 import Vendors from './views/Vendors.vue'
+import Vehicles from './views/Vehicles.vue'
 import RbacEditor from './views/RbacEditor.vue'
 
 const router = createRouter({
@@ -40,6 +41,7 @@ const router = createRouter({
     { path: '/staff', component: Staff, meta: { auth: true } },
     { path: '/hierarchy', component: Hierarchy, meta: { auth: true } },
     { path: '/vendors', component: Vendors, meta: { auth: true } },
+    { path: '/vehicles', component: Vehicles, meta: { auth: true } },
     { path: '/admin/rbac', component: RbacEditor, meta: { auth: true } },
     { path: '/settings', component: Settings, meta: { auth: true } },
   ],

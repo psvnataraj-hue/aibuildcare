@@ -10,6 +10,8 @@ import {
   Star,
   AlertTriangle,
   TrendingUp,
+  Car,
+  Lock,
 } from 'lucide-vue-next'
 import {
   api,
@@ -23,6 +25,15 @@ import { can } from '../lib/currentUser'
 // E3h — gate action buttons by effective permission.
 const canAssign = computed(() => can(PERMISSIONS.ASSIGN))
 const canResolve = computed(() => can(PERMISSIONS.RESOLVE))
+// Parking P4 — clamping requires the AUTHORIZE_ENFORCEMENT permission
+// AND a parking-category complaint.
+const canAuthorizeClamping = computed(
+  () => can(PERMISSIONS.AUTHORIZE_ENFORCEMENT),
+)
+const isParkingComplaint = computed(
+  () => c.value?.category === 'Parking Management',
+)
+const isClamped = computed(() => !!c.value?.clamped)
 import Card from '../components/ui/Card.vue'
 import Badge from '../components/ui/Badge.vue'
 import Spinner from '../components/ui/Spinner.vue'
@@ -154,6 +165,26 @@ const majorIncidentFlaggedAt = computed(() =>
     ? new Date(c.value.major_incident_flagged_at).toLocaleString()
     : null
 )
+const clampedAtFmt = computed(() =>
+  c.value?.clamped_at
+    ? new Date(c.value.clamped_at).toLocaleString()
+    : null
+)
+
+async function authorizeClamping() {
+  if (!c.value) return
+  if (!confirm(
+    `Authorize clamping vehicle ${c.value.vehicle_plate || ''}? ` +
+    'This action is logged + notifies the owner via WhatsApp.',
+  )) return
+  try {
+    await api.authorizeClamping(id)
+    await load()
+    toast('Clamping authorized ✓ — owner notified')
+  } catch (e: any) {
+    toast(e.message || 'Clamping failed', 'error')
+  }
+}
 
 onMounted(async () => {
   await load()
@@ -225,6 +256,66 @@ async function setStatus(s: string) {
         </p>
       </div>
     </div>
+
+    <!-- P2/P4: parking-specific card. Renders only on Parking
+         Management complaints. Shows the linked vehicle (or "plate
+         not in registry") and the clamping state + action. -->
+    <Card
+      v-if="isParkingComplaint"
+      :class="isClamped ? 'ring-2 ring-red-500/50' : ''"
+    >
+      <div class="flex items-center gap-2 mb-2">
+        <Car class="h-5 w-5 text-primary" />
+        <h2 class="font-semibold">Parking · पार्किंग</h2>
+        <Badge
+          v-if="isClamped"
+          variant="urgent"
+          class="ml-auto"
+        >Clamped</Badge>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p class="text-xs text-muted-foreground">Plate</p>
+          <p class="font-mono font-bold mt-0.5">
+            {{ c.vehicle_plate || '—' }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs text-muted-foreground">Violation</p>
+          <p class="font-semibold mt-0.5 capitalize">
+            {{ (c.violation_type || '—').replace(/_/g, ' ') }}
+          </p>
+        </div>
+      </div>
+      <p
+        v-if="c.vehicle_plate && !c.vehicle_id"
+        class="text-xs text-amber-700 dark:text-amber-300 mt-3 italic"
+      >
+        Plate not in vehicle registry. Add it via Vehicles to enable
+        owner notifications.
+      </p>
+      <p
+        v-if="c.vehicle_id"
+        class="text-xs text-muted-foreground mt-3"
+      >
+        Linked to vehicle #{{ c.vehicle_id }} — owner notified on
+        ticket creation.
+      </p>
+      <div v-if="isClamped" class="mt-3 pt-3 border-t">
+        <p class="text-xs text-muted-foreground">
+          Clamped by user #{{ c.clamping_authorized_by }} at
+          {{ clampedAtFmt }}
+        </p>
+      </div>
+      <button
+        v-else-if="canAuthorizeClamping"
+        class="mt-3 w-full inline-flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-md"
+        @click="authorizeClamping"
+      >
+        <Lock class="h-4 w-4" />
+        Authorize clamping · क्लैम्पिंग
+      </button>
+    </Card>
 
     <div>
       <div class="flex items-center gap-3 flex-wrap">
