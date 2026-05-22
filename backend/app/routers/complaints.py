@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
-from ..deps import current_user, current_society, require
+from ..deps import current_user, current_society, target_society, require
 from ..schemas import (
     ComplaintCreate,
     AssignRequest,
@@ -19,8 +19,8 @@ router = APIRouter(prefix="/api/v1", tags=["complaints"])
 
 @router.get("/analytics",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def analytics() -> dict:
-    return svc.analytics()
+def analytics(sid: int | None = Depends(target_society)) -> dict:
+    return svc.analytics(society_id=sid)
 
 
 @router.get("/contractors",

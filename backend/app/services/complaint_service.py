@@ -969,23 +969,33 @@ def analytics_summary() -> dict:
     }
 
 
-def analytics() -> dict:
+def analytics(society_id: int | None = None) -> dict:
+    """Complaint analytics. Finding 001: society-scoped.
+
+    `society_id=None` = global (all tenants) — platform_operator only.
+    Any int = that tenant only.
+    """
+    # `WHERE society_id = ?` only when scoped; AND-glued onto each query
+    scope = "" if society_id is None else " AND c.society_id = ?"
+    sp: list = [] if society_id is None else [society_id]
     with get_conn() as conn:
         total = conn.execute(
-            "SELECT COUNT(*) c FROM complaints"
+            "SELECT COUNT(*) c FROM complaints c WHERE 1=1" + scope, sp
         ).fetchone()["c"]
         open_ = conn.execute(
-            "SELECT COUNT(*) c FROM complaints WHERE status NOT IN "
-            "('resolved','closed')"
+            "SELECT COUNT(*) c FROM complaints c WHERE c.status NOT IN "
+            "('resolved','closed')" + scope, sp
         ).fetchone()["c"]
         urgent = conn.execute(
-            "SELECT COUNT(*) c FROM complaints WHERE priority = 'urgent' "
-            "AND status NOT IN ('resolved','closed')"
+            "SELECT COUNT(*) c FROM complaints c WHERE c.priority = "
+            "'urgent' AND c.status NOT IN ('resolved','closed')" + scope,
+            sp,
         ).fetchone()["c"]
         by_status = {
             r["status"]: r["c"]
             for r in conn.execute(
-                "SELECT status, COUNT(*) c FROM complaints GROUP BY status"
+                "SELECT c.status, COUNT(*) c FROM complaints c "
+                "WHERE 1=1" + scope + " GROUP BY c.status", sp
             ).fetchall()
         }
         return {

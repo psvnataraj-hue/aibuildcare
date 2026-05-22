@@ -74,3 +74,98 @@ def test_target_society_operator_targets_any_or_global():
     operator = {"role": "platform_operator", "society_id": 1}
     assert target_society(society_id=42, user=operator) == 42
     assert target_society(society_id=None, user=operator) is None
+
+
+# --------------------------------------------------------------------
+# shared multi-society fixture
+# --------------------------------------------------------------------
+@pytest.fixture()
+def two_socs(client):
+    """Society 1 (seed) + society 2, each with a tenant `admin` user
+    and a contractor. Plus the seeded platform_operator. Returns a
+    dict of (sid1, sid2, h_admin1, h_admin2, h_operator)."""
+    with get_conn() as conn:
+        sid1 = dict(
+            conn.execute(
+                "SELECT id FROM societies ORDER BY id LIMIT 1"
+            ).fetchone()
+        )["id"]
+        conn.execute(
+            "INSERT INTO societies (name, address) VALUES (?,?)",
+            ("Society Two", "Elsewhere"),
+        )
+        sid2 = dict(
+            conn.execute(
+                "SELECT id FROM societies ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        )["id"]
+        # a tenant-scoped admin in each society
+        conn.execute(
+            "INSERT INTO users (email, password_hash, full_name, role, "
+            "society_id, is_active) VALUES (?,?,?,?,?,1)",
+            ("admin1@s.com", hash_password(PW), "Admin One", "admin", sid1),
+        )
+        conn.execute(
+            "INSERT INTO users (email, password_hash, full_name, role, "
+            "society_id, is_active) VALUES (?,?,?,?,?,1)",
+            ("admin2@s.com", hash_password(PW), "Admin Two", "admin", sid2),
+        )
+        # a contractor in each society
+        conn.execute(
+            "INSERT INTO contractors (name, specialty, society_id, "
+            "is_active) VALUES (?,?,?,1)",
+            ("Soc2 Plumber", "Plumbing", sid2),
+        )
+    return {
+        "sid1": sid1,
+        "sid2": sid2,
+        "h_admin1": _login(client, "admin1@s.com"),
+        "h_admin2": _login(client, "admin2@s.com"),
+        "h_operator": _login(client, "admin@aibuildcare.app"),
+    }
+
+
+def _make(client, h, text):
+    r = client.post(
+        "/api/v1/complaints", json={"raw_text": text}, headers=h
+    )
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+# --------------------------------------------------------------------
+# leak #1 — GET /api/v1/analytics
+# --------------------------------------------------------------------
+def test_analytics_is_society_scoped(client, two_socs):
+    """A tenant admin sees only their own society's complaint counts."""
+    _make(client, two_socs["h_admin1"], "soc1 lift broken")
+    _make(client, two_socs["h_admin1"], "soc1 water leak")
+    _make(client, two_socs["h_admin2"], "soc2 power cut")
+
+    a1 = client.get(
+        "/api/v1/analytics", headers=two_socs["h_admin1"]
+    ).json()
+    a2 = client.get(
+        "/api/v1/analytics", headers=two_socs["h_admin2"]
+    ).json()
+    assert a1["total"] == 2
+    assert a2["total"] == 1
+
+
+def test_analytics_operator_sees_global_and_can_target(client, two_socs):
+    """platform_operator: no ?society_id= = global; ?society_id=N
+    targets one tenant."""
+    _make(client, two_socs["h_admin1"], "soc1 a")
+    _make(client, two_socs["h_admin1"], "soc1 b")
+    _make(client, two_socs["h_admin2"], "soc2 a")
+
+    g = client.get(
+        "/api/v1/analytics", headers=two_socs["h_operator"]
+    ).json()
+    assert g["total"] == 3  # global view across all tenants
+
+    scoped = client.get(
+        f"/api/v1/analytics?society_id={two_socs['sid2']}",
+        headers=two_socs["h_operator"],
+    ).json()
+    assert scoped["total"] == 1
