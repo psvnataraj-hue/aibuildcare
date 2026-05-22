@@ -1,6 +1,6 @@
 from typing import Callable
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .services.auth_service import user_from_token
@@ -29,6 +29,30 @@ def current_user(
 def current_society(user: dict = Depends(current_user)) -> int:
     """The caller's society_id, derived server-side from the token.
     Clients never pass society_id; this is the tenant boundary."""
+    sid = user.get("society_id")
+    if sid is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="user is not bound to a society",
+        )
+    return sid
+
+
+def target_society(
+    society_id: int | None = Query(None),
+    user: dict = Depends(current_user),
+) -> int | None:
+    """Resolve the society a request should operate on (Finding 001).
+
+    - `platform_operator`: may pass `?society_id=N` to target any
+      tenant; omitting it returns ``None`` = "all societies"
+      (the cross-tenant global view).
+    - every other role: returns their own `society_id`; the query
+      param is IGNORED (a tenant admin cannot escape its tenant).
+      403 if the caller is not bound to a society.
+    """
+    if user.get("role") == "platform_operator":
+        return society_id
     sid = user.get("society_id")
     if sid is None:
         raise HTTPException(
