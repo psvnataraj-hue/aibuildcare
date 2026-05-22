@@ -217,8 +217,14 @@ def test_oem_upsert_and_delete_override_via_api(client, roles_in_soc1):
     assert r.status_code == 200 and r.json()["cleared"] == 1
 
 
-def test_oem_cross_society_requires_admin(client, roles_in_soc1):
-    _, tok = roles_in_soc1
+def test_oem_cross_society_requires_platform_operator(
+    client, roles_in_soc1
+):
+    """Finding 001: cross-society permission management requires the
+    cross-tenant `platform_operator` role. A tenant `admin` — even
+    though it holds every permission within its own society — cannot
+    target another society."""
+    sid1, tok = roles_in_soc1
     # create society 2
     with get_conn() as conn:
         conn.execute("INSERT INTO societies (name) VALUES ('Soc2')")
@@ -227,18 +233,33 @@ def test_oem_cross_society_requires_admin(client, roles_in_soc1):
                 "SELECT id FROM societies ORDER BY id DESC LIMIT 1"
             ).fetchone()
         )["id"]
+        # an in-society tenant `admin` (role=admin) bound to society 1
+        conn.execute(
+            "INSERT INTO users (email, password_hash, full_name, role, "
+            "society_id, is_active) VALUES (?,?,?,?,?,1)",
+            ("tenant_admin@s1.com", hash_password(PW), "Tenant Admin",
+             "admin", sid1),
+        )
+    tenant_admin = _login(client, "tenant_admin@s1.com")
 
-    # manager in soc1 has MODIFY_CONFIG by default, but cannot manage soc2
+    # (a) a tenant `admin` (society 1) cannot target society 2 -> 403
+    r = client.put(
+        f"/api/v1/admin/permissions/overrides?society_id={sid2}",
+        json={"role": "staff", "permission": rbac.ASSIGN, "granted": True},
+        headers=tenant_admin,
+    )
+    assert r.status_code == 403
+
+    # manager in soc1 also cannot manage soc2 -> 403
     r = client.put(
         f"/api/v1/admin/permissions/overrides?society_id={sid2}",
         json={"role": "staff", "permission": rbac.ASSIGN, "granted": True},
         headers=tok["manager"],
     )
-    # manager doesn't have modify_config by default either -> 403
-    # (either way, must NOT succeed)
     assert r.status_code == 403
 
-    # admin can target any society
+    # (b) platform_operator (the seeded admin@aibuildcare.app) CAN
+    # target any society
     r = client.put(
         f"/api/v1/admin/permissions/overrides?society_id={sid2}",
         json={"role": "staff", "permission": rbac.ASSIGN, "granted": True},

@@ -310,3 +310,50 @@ def test_admin_config_post_requires_platform_operator(client, two_socs):
         "/api/v1/admin/config/some_key", json={"value": "1"},
         headers=two_socs["h_operator"],
     ).status_code == 200
+
+
+# --------------------------------------------------------------------
+# leak #10 — /api/v1/admin/permissions* — cross-society management is
+# platform_operator-only (was: admin)
+# --------------------------------------------------------------------
+def test_permissions_cross_society_blocked_for_tenant_admin(
+    client, two_socs
+):
+    """A tenant `admin` cannot manage another society's permissions —
+    cross-society reach now requires platform_operator."""
+    sid2 = two_socs["sid2"]
+    # admin1 reading society 2's effective matrix -> 403
+    assert client.get(
+        f"/api/v1/admin/permissions?society_id={sid2}",
+        headers=two_socs["h_admin1"],
+    ).status_code == 403
+    # admin1 writing an override for society 2 -> 403
+    assert client.put(
+        f"/api/v1/admin/permissions/overrides?society_id={sid2}",
+        json={"role": "staff", "permission": "assign", "granted": True},
+        headers=two_socs["h_admin1"],
+    ).status_code == 403
+
+
+def test_permissions_cross_society_allowed_for_operator(client, two_socs):
+    """platform_operator may manage any society's permissions."""
+    sid2 = two_socs["sid2"]
+    assert client.get(
+        f"/api/v1/admin/permissions?society_id={sid2}",
+        headers=two_socs["h_operator"],
+    ).status_code == 200
+    assert client.put(
+        f"/api/v1/admin/permissions/overrides?society_id={sid2}",
+        json={"role": "staff", "permission": "assign", "granted": True},
+        headers=two_socs["h_operator"],
+    ).status_code == 200
+
+
+def test_permissions_own_society_still_works_for_tenant_admin(
+    client, two_socs
+):
+    """A tenant admin can still manage ITS OWN society (no society_id,
+    or its own id)."""
+    assert client.get(
+        "/api/v1/admin/permissions", headers=two_socs["h_admin1"]
+    ).status_code == 200

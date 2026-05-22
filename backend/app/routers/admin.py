@@ -6,9 +6,10 @@ Endpoints:
   PUT    /api/v1/admin/permissions/overrides   — grant/revoke a permission
   DELETE /api/v1/admin/permissions/overrides   — revert to default
 
-Targets the caller's own society by default. The OEM (role=admin) may
-pass ?society_id=N to manage any society customer; non-admin callers
-are limited to their own society.
+Targets the caller's own society by default. The cross-tenant
+operator (role=platform_operator) may pass ?society_id=N to manage any
+society customer; every other role (incl. tenant `admin`) is limited
+to their own society (Finding 001).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -26,16 +27,17 @@ class OverrideBody(BaseModel):
 
 
 def _target_society(user: dict, society_id: int | None) -> int:
-    """Resolve the society to operate on. Cross-society management
-    requires the OEM superuser (role=admin)."""
+    """Resolve the society to operate on. Finding 001: cross-society
+    management requires the cross-tenant `platform_operator` role — a
+    tenant `admin` is scoped to its own society."""
     own = user.get("society_id")
     if society_id is None or society_id == own:
         if own is None:
             raise HTTPException(403, "caller is not bound to a society")
         return own
-    if user.get("role") != "admin":
+    if user.get("role") != "platform_operator":
         raise HTTPException(
-            403, "cross-society management requires admin (OEM) role"
+            403, "cross-society management requires platform_operator role"
         )
     return society_id
 
