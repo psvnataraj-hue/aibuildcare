@@ -26,6 +26,10 @@ def seed() -> None:
                     "restart to seed the admin."
                 )
             else:
+                # Finding 001: the seeded operator is the cross-tenant
+                # `platform_operator` (Nataraj's login). It stays BOUND
+                # to society 1 via the backfill below — a non-NULL
+                # society_id keeps `current_society` endpoints working.
                 conn.execute(
                     "INSERT INTO users (email, password_hash, full_name, "
                     "role) VALUES (?,?,?,?)",
@@ -33,7 +37,7 @@ def seed() -> None:
                         s.seed_admin_email,
                         hash_password(s.seed_admin_password),
                         "Administrator",
-                        "admin",
+                        "platform_operator",
                     ),
                 )
         if not conn.execute("SELECT 1 FROM societies").fetchone():
