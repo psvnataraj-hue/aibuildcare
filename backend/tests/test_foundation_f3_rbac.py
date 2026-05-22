@@ -262,3 +262,14 @@ def test_override_db_failure_falls_back_to_default(client, roles_in_soc1,
     assert rbac.has_permission("staff", rbac.ASSIGN, sid) is False
     # default: manager has ASSIGN -> still True
     assert rbac.has_permission("manager", rbac.ASSIGN, sid) is True
+
+
+# ---- platform_operator role (Finding 001) ---------------------------
+def test_platform_operator_is_a_known_role_with_all_permissions():
+    """platform_operator is the cross-tenant operator role (Nataraj's
+    login after Finding 001). It holds every permission — like a society
+    admin does within its own society — and is not overridable."""
+    assert "platform_operator" in rbac.ROLES
+    for p in rbac.ALL_PERMISSIONS:
+        assert rbac.has_permission("platform_operator", p) is True
+    assert rbac.permissions_for("platform_operator") == rbac.ALL_PERMISSIONS

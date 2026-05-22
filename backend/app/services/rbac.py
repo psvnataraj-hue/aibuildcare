@@ -27,10 +27,15 @@ ALL_PERMISSIONS: frozenset[str] = frozenset({
 })
 
 # --- roles (spec Part 1.1) -------------------------------------------
+# `admin`            — a society's own superuser; tenant-scoped (sees only
+#                      its own society's data; scoping enforced at the
+#                      router/query layer).
+# `platform_operator`— the cross-tenant operator (Finding 001). Nataraj's
+#                      login. Legitimately sees across all tenants.
 ROLES: frozenset[str] = frozenset({
     "resident", "staff", "contractor", "manager", "sr_manager",
     "secretary", "chairman", "committee_member", "enforcement_officer",
-    "viewer", "admin",
+    "viewer", "admin", "platform_operator",
 })
 
 _MANAGER = {
@@ -58,7 +63,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         FILE_COMPLAINT, VIEW_OWN, VIEW_ALL, RESOLVE,
     }),
     "viewer": frozenset({VIEW_ALL}),  # read-only audit
-    "admin": ALL_PERMISSIONS,         # pilot superuser
+    "admin": ALL_PERMISSIONS,         # a society's own superuser (tenant-scoped)
+    "platform_operator": ALL_PERMISSIONS,  # cross-tenant operator (Finding 001)
 }
 
 
