@@ -281,3 +281,32 @@ def test_contractor_performance_is_society_scoped(client, two_socs):
         f"/api/v1/contractors/{cid2}/performance",
         headers=two_socs["h_admin2"],
     ).status_code == 200
+
+
+# --------------------------------------------------------------------
+# leak #8 — GET/POST /api/v1/admin/config — global infra config,
+# gated to platform_operator only
+# --------------------------------------------------------------------
+def test_admin_config_get_requires_platform_operator(client, two_socs):
+    """system_config is GLOBAL infra config — a tenant admin must not
+    read it. Only platform_operator may."""
+    # tenant admin -> 403
+    assert client.get(
+        "/api/v1/admin/config", headers=two_socs["h_admin1"]
+    ).status_code == 403
+    # platform_operator -> 200
+    assert client.get(
+        "/api/v1/admin/config", headers=two_socs["h_operator"]
+    ).status_code == 200
+
+
+def test_admin_config_post_requires_platform_operator(client, two_socs):
+    """Writing global infra config is platform_operator-only."""
+    assert client.post(
+        "/api/v1/admin/config/some_key", json={"value": "1"},
+        headers=two_socs["h_admin1"],
+    ).status_code == 403
+    assert client.post(
+        "/api/v1/admin/config/some_key", json={"value": "1"},
+        headers=two_socs["h_operator"],
+    ).status_code == 200

@@ -62,6 +62,18 @@ def target_society(
     return sid
 
 
+def require_platform_operator(user: dict = Depends(current_user)) -> dict:
+    """Gate an endpoint to the cross-tenant `platform_operator` role
+    only (Finding 001). Used for GLOBAL infra config that is not
+    per-society — a tenant admin must not reach it."""
+    if user.get("role") != "platform_operator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="this endpoint is restricted to platform_operator",
+        )
+    return user
+
+
 def require(permission: str) -> Callable[[dict], dict]:
     """Dependency factory: 403 unless the caller's role grants
     `permission` (single RBAC matrix in services.rbac)."""

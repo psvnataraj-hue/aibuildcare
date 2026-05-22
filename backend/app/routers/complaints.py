@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
-from ..deps import current_user, current_society, target_society, require
+from ..deps import (
+    current_user, current_society, target_society, require,
+    require_platform_operator,
+)
 from ..schemas import (
     ComplaintCreate,
     AssignRequest,
@@ -113,14 +116,18 @@ async def create_complaint(
     return c
 
 
+# Finding 001 (leak #8): system_config is GLOBAL infra config (no
+# society_id column) — NOT per-society. Reading or writing it is
+# restricted to the cross-tenant platform_operator; a tenant admin
+# must not touch global infra config.
 @router.get("/admin/config",
-            dependencies=[Depends(require(rbac.VIEW_ALL))])
+            dependencies=[Depends(require_platform_operator)])
 def get_admin_config() -> dict:
     return system_config.all_config()
 
 
 @router.post("/admin/config/{key}",
-             dependencies=[Depends(require(rbac.MODIFY_CONFIG))])
+             dependencies=[Depends(require_platform_operator)])
 def set_admin_config(key: str, body: ConfigUpdate) -> dict:
     return system_config.set_config(key, body.value)
 
