@@ -25,14 +25,21 @@ def analytics(sid: int | None = Depends(target_society)) -> dict:
 
 @router.get("/contractors",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractors() -> list[dict]:
+def contractors(
+    sid: int | None = Depends(target_society)
+) -> list[dict]:
     from ..db import get_conn
 
+    # Finding 001: society-scoped. None = platform_operator global view.
+    scope = "" if sid is None else " AND society_id = ?"
+    params: tuple = () if sid is None else (sid,)
     with get_conn() as conn:
         return [
             dict(r)
             for r in conn.execute(
-                "SELECT * FROM contractors WHERE is_active = 1 ORDER BY name"
+                "SELECT * FROM contractors WHERE is_active = 1" + scope
+                + " ORDER BY name",
+                params,
             ).fetchall()
         ]
 
@@ -120,14 +127,18 @@ def set_admin_config(key: str, body: ConfigUpdate) -> dict:
 
 @router.get("/contractors/analytics/summary",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractors_analytics_summary() -> dict:
-    return svc.analytics_summary()
+def contractors_analytics_summary(
+    sid: int | None = Depends(target_society)
+) -> dict:
+    return svc.analytics_summary(society_id=sid)
 
 
 @router.get("/contractors/{cid}/analytics",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractor_analytics(cid: int) -> dict:
-    a = svc.contractor_analytics(cid)
+def contractor_analytics(
+    cid: int, sid: int | None = Depends(target_society)
+) -> dict:
+    a = svc.contractor_analytics(cid, society_id=sid)
     if not a:
         raise HTTPException(status_code=404, detail="contractor not found")
     return a
@@ -135,22 +146,29 @@ def contractor_analytics(cid: int) -> dict:
 
 @router.get("/contractors/by-category",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractors_by_category(category: str | None = None) -> list[dict]:
+def contractors_by_category(
+    category: str | None = None,
+    sid: int | None = Depends(target_society),
+) -> list[dict]:
     from ..services.contractor_router import contractors_by_category as cbc
 
-    return cbc(category)
+    return cbc(category, society_id=sid)
 
 
 @router.get("/contractors/performance",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractors_performance() -> list[dict]:
-    return svc.contractor_performance()
+def contractors_performance(
+    sid: int | None = Depends(target_society)
+) -> list[dict]:
+    return svc.contractor_performance(society_id=sid)
 
 
 @router.get("/contractors/{cid}/performance",
             dependencies=[Depends(require(rbac.VIEW_ALL))])
-def contractor_performance(cid: int) -> dict:
-    rows = svc.contractor_performance(cid)
+def contractor_performance(
+    cid: int, sid: int | None = Depends(target_society)
+) -> dict:
+    rows = svc.contractor_performance(cid, society_id=sid)
     if not rows:
         raise HTTPException(status_code=404, detail="contractor not found")
     return rows[0]

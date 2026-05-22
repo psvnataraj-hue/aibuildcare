@@ -710,15 +710,39 @@ def _avg_hours(pairs: list[tuple[str, str]]) -> float | None:
     return round(sum(spans) / len(spans) / 3600, 2)
 
 
-def contractor_performance(contractor_id: int | None = None) -> list[dict]:
+def contractor_performance(
+    contractor_id: int | None = None,
+    society_id: int | None = None,
+) -> list[dict]:
+    """Per-contractor performance. Finding 001: society-scoped.
+
+    `society_id=None` = all tenants (platform_operator global view);
+    any int restricts to contractors of that society. A single
+    `contractor_id` from another society returns [] (treated as
+    not-found by the router).
+    """
     with get_conn() as conn:
         if contractor_id is not None:
+            if society_id is None:
+                cons = conn.execute(
+                    "SELECT * FROM contractors WHERE id = ?",
+                    (contractor_id,),
+                ).fetchall()
+            else:
+                cons = conn.execute(
+                    "SELECT * FROM contractors WHERE id = ? "
+                    "AND society_id = ?",
+                    (contractor_id, society_id),
+                ).fetchall()
+        elif society_id is None:
             cons = conn.execute(
-                "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
+                "SELECT * FROM contractors WHERE is_active = 1 ORDER BY name"
             ).fetchall()
         else:
             cons = conn.execute(
-                "SELECT * FROM contractors WHERE is_active = 1 ORDER BY name"
+                "SELECT * FROM contractors WHERE is_active = 1 "
+                "AND society_id = ? ORDER BY name",
+                (society_id,),
             ).fetchall()
         out = []
         for con in cons:
@@ -804,11 +828,24 @@ def _hist_first(conn, cid):
     return first
 
 
-def contractor_analytics(contractor_id: int) -> dict | None:
+def contractor_analytics(
+    contractor_id: int, society_id: int | None = None
+) -> dict | None:
+    """Deep analytics for one contractor. Finding 001: society-scoped.
+
+    Returns None if the contractor does not exist OR belongs to a
+    different society than `society_id` (when scoped).
+    """
     with get_conn() as conn:
-        crow = conn.execute(
-            "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
-        ).fetchone()
+        if society_id is None:
+            crow = conn.execute(
+                "SELECT * FROM contractors WHERE id = ?", (contractor_id,)
+            ).fetchone()
+        else:
+            crow = conn.execute(
+                "SELECT * FROM contractors WHERE id = ? AND society_id = ?",
+                (contractor_id, society_id),
+            ).fetchone()
         if not crow:
             return None
         con = dict(crow)
@@ -892,23 +929,30 @@ def contractor_analytics(contractor_id: int) -> dict | None:
         }
 
 
-def analytics_summary() -> dict:
+def analytics_summary(society_id: int | None = None) -> dict:
+    """Aggregate contractor analytics. Finding 001: society-scoped.
+
+    `society_id=None` = all tenants (platform_operator global view).
+    """
     from . import system_config
 
     cap = system_config.get_int("max_pending_jobs_per_contractor", 10)
+    scope = "" if society_id is None else " AND society_id = ?"
+    sp: list = [] if society_id is None else [society_id]
     with get_conn() as conn:
         cons = [
             dict(r)
             for r in conn.execute(
-                "SELECT * FROM contractors WHERE is_active = 1"
+                "SELECT * FROM contractors WHERE is_active = 1" + scope, sp
             ).fetchall()
         ]
         total_all = dict(
             conn.execute(
-                "SELECT COUNT(*) AS c FROM contractors"
+                "SELECT COUNT(*) AS c FROM contractors WHERE 1=1" + scope,
+                sp,
             ).fetchone()
         )["c"]
-        perf = contractor_performance()
+        perf = contractor_performance(society_id=society_id)
     ratings = [
         c["average_rating"] for c in cons if c.get("average_rating")
     ]

@@ -25,18 +25,22 @@ def pending_count(contractor_id: int) -> int:
     return dict(row)["c"]
 
 
-def _candidates(category: str | None) -> list[dict]:
+def _candidates(
+    category: str | None, society_id: int | None = None
+) -> list[dict]:
     if not category:
         return []
     like = f"%{category.strip().lower()}%"
+    scope = "" if society_id is None else " AND society_id = ?"
+    params: list = [like] if society_id is None else [like, society_id]
     with get_conn() as conn:
         return [
             dict(r)
             for r in conn.execute(
                 "SELECT * FROM contractors "
-                "WHERE is_active = 1 AND lower(specialty) LIKE ? "
-                "ORDER BY average_rating DESC, name ASC",
-                (like,),
+                "WHERE is_active = 1 AND lower(specialty) LIKE ?" + scope
+                + " ORDER BY average_rating DESC, name ASC",
+                tuple(params),
             ).fetchall()
         ]
 
@@ -73,16 +77,24 @@ def best_contractor(category: str | None) -> dict | None:
     return chosen
 
 
-def contractors_by_category(category: str | None) -> list[dict]:
+def contractors_by_category(
+    category: str | None, society_id: int | None = None
+) -> list[dict]:
     """All active contractors for a category, best-rated first
-    (manual-override dropdown)."""
+    (manual-override dropdown). Finding 001: society-scoped.
+
+    `society_id=None` = all tenants (platform_operator global view).
+    """
     if not category:
+        scope = "" if society_id is None else " AND society_id = ?"
+        params: tuple = () if society_id is None else (society_id,)
         with get_conn() as conn:
             return [
                 dict(r)
                 for r in conn.execute(
-                    "SELECT * FROM contractors WHERE is_active = 1 "
-                    "ORDER BY average_rating DESC, name ASC"
+                    "SELECT * FROM contractors WHERE is_active = 1" + scope
+                    + " ORDER BY average_rating DESC, name ASC",
+                    params,
                 ).fetchall()
             ]
-    return _candidates(category)
+    return _candidates(category, society_id)

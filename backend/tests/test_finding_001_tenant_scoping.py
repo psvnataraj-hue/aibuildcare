@@ -169,3 +169,115 @@ def test_analytics_operator_sees_global_and_can_target(client, two_socs):
         headers=two_socs["h_operator"],
     ).json()
     assert scoped["total"] == 1
+
+
+# --------------------------------------------------------------------
+# leaks #2-7 — contractor endpoints
+# --------------------------------------------------------------------
+def _con_ids(rows):
+    return {r["id"] for r in rows}
+
+
+def test_contractors_list_is_society_scoped(client, two_socs):
+    """leak #2: GET /contractors. The seed contractors (ids 1-4) are
+    in society 1; the fixture adds 'Soc2 Plumber' in society 2."""
+    list1 = client.get(
+        "/api/v1/contractors", headers=two_socs["h_admin1"]
+    ).json()
+    list2 = client.get(
+        "/api/v1/contractors", headers=two_socs["h_admin2"]
+    ).json()
+    names1 = {c["name"] for c in list1}
+    names2 = {c["name"] for c in list2}
+    assert "Soc2 Plumber" not in names1
+    assert names2 == {"Soc2 Plumber"}
+    # platform_operator sees all
+    glob = client.get(
+        "/api/v1/contractors", headers=two_socs["h_operator"]
+    ).json()
+    assert "Soc2 Plumber" in {c["name"] for c in glob}
+
+
+def test_contractors_summary_is_society_scoped(client, two_socs):
+    """leak #3: GET /contractors/analytics/summary."""
+    s1 = client.get(
+        "/api/v1/contractors/analytics/summary",
+        headers=two_socs["h_admin1"],
+    ).json()
+    s2 = client.get(
+        "/api/v1/contractors/analytics/summary",
+        headers=two_socs["h_admin2"],
+    ).json()
+    # society 1 has the 4 seed contractors; society 2 has exactly 1
+    assert s1["total_contractors"] == 4
+    assert s2["total_contractors"] == 1
+
+
+def test_contractor_analytics_cross_society_is_404(client, two_socs):
+    """leak #4: GET /contractors/{cid}/analytics. Society 1's admin
+    must not read society 2's contractor."""
+    with get_conn() as conn:
+        cid2 = dict(
+            conn.execute(
+                "SELECT id FROM contractors WHERE name = ?",
+                ("Soc2 Plumber",),
+            ).fetchone()
+        )["id"]
+    # admin1 cannot see society 2's contractor
+    assert client.get(
+        f"/api/v1/contractors/{cid2}/analytics",
+        headers=two_socs["h_admin1"],
+    ).status_code == 404
+    # society 2's own admin can
+    assert client.get(
+        f"/api/v1/contractors/{cid2}/analytics",
+        headers=two_socs["h_admin2"],
+    ).status_code == 200
+    # platform_operator can
+    assert client.get(
+        f"/api/v1/contractors/{cid2}/analytics",
+        headers=two_socs["h_operator"],
+    ).status_code == 200
+
+
+def test_contractors_by_category_is_society_scoped(client, two_socs):
+    """leak #5: GET /contractors/by-category."""
+    r1 = client.get(
+        "/api/v1/contractors/by-category?category=Plumbing",
+        headers=two_socs["h_admin1"],
+    ).json()
+    r2 = client.get(
+        "/api/v1/contractors/by-category?category=Plumbing",
+        headers=two_socs["h_admin2"],
+    ).json()
+    assert "Soc2 Plumber" not in {c["name"] for c in r1}
+    assert {c["name"] for c in r2} == {"Soc2 Plumber"}
+
+
+def test_contractor_performance_is_society_scoped(client, two_socs):
+    """leak #6/#7: GET /contractors/performance and
+    /contractors/{cid}/performance."""
+    perf1 = client.get(
+        "/api/v1/contractors/performance", headers=two_socs["h_admin1"]
+    ).json()
+    perf2 = client.get(
+        "/api/v1/contractors/performance", headers=two_socs["h_admin2"]
+    ).json()
+    assert "Soc2 Plumber" not in {p["name"] for p in perf1}
+    assert {p["name"] for p in perf2} == {"Soc2 Plumber"}
+    # cross-society single-contractor performance is 404
+    with get_conn() as conn:
+        cid2 = dict(
+            conn.execute(
+                "SELECT id FROM contractors WHERE name = ?",
+                ("Soc2 Plumber",),
+            ).fetchone()
+        )["id"]
+    assert client.get(
+        f"/api/v1/contractors/{cid2}/performance",
+        headers=two_socs["h_admin1"],
+    ).status_code == 404
+    assert client.get(
+        f"/api/v1/contractors/{cid2}/performance",
+        headers=two_socs["h_admin2"],
+    ).status_code == 200
