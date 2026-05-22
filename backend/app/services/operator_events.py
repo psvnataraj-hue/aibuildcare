@@ -184,19 +184,39 @@ def recent_events(
     return rows
 
 
-def mark_seen(event_ids: list[int]) -> int:
+def mark_seen(
+    event_ids: list[int],
+    society_id: int | None = None,
+    scoped: bool = False,
+) -> int:
     """Mark events as seen. Returns count updated. Used by the operator
-    UI's 'acknowledge' action."""
+    UI's 'acknowledge' action.
+
+    Finding 001 — tenant scoping: when ``scoped=True`` the update is
+    restricted to events the caller may see: ``society_id IS NULL``
+    (system-wide events) OR ``society_id = <society_id>``. A tenant
+    user passing another society's event id is then a silent no-op
+    for that id. When ``scoped=False`` (platform_operator) every id
+    is marked.
+    """
     if not event_ids:
         return 0
     placeholders = ",".join("?" for _ in event_ids)
+    sql = f"UPDATE operator_events SET seen = 1 WHERE id IN ({placeholders})"
+    params: list = list(event_ids)
+    if scoped:
+        sql += " AND (society_id IS NULL OR society_id = ?)"
+        params.append(society_id)
     try:
         with get_conn() as conn:
-            cur = conn.execute(
-                f"UPDATE operator_events SET seen = 1 WHERE id IN ({placeholders})",
-                tuple(event_ids),
-            )
-            return cur.rowcount if hasattr(cur, "rowcount") else len(event_ids)
+            cur = conn.execute(sql, tuple(params))
+            # rowcount is reliable for a scoped UPDATE; fall back to the
+            # id count only for the unscoped path where some backends
+            # report -1.
+            rc = cur.rowcount if hasattr(cur, "rowcount") else None
+            if rc is not None and rc >= 0:
+                return rc
+            return len(event_ids)
     except Exception as exc:
         log.warning("mark_seen failed: %s", exc)
         return 0

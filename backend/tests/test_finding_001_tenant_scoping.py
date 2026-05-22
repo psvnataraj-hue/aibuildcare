@@ -357,3 +357,73 @@ def test_permissions_own_society_still_works_for_tenant_admin(
     assert client.get(
         "/api/v1/admin/permissions", headers=two_socs["h_admin1"]
     ).status_code == 200
+
+
+# --------------------------------------------------------------------
+# leak #11 — /api/v1/diagnostics/events + /events/seen
+# --------------------------------------------------------------------
+def _seed_events(sid1, sid2):
+    """Insert 3 operator_events: one for sid1, one for sid2, one
+    system-wide (NULL society_id). Returns their ids."""
+    from app.services import operator_events
+
+    e1 = operator_events.log_event(
+        "test_evt", "soc1 event", society_id=sid1
+    )
+    e2 = operator_events.log_event(
+        "test_evt", "soc2 event", society_id=sid2
+    )
+    eg = operator_events.log_event(
+        "test_evt", "system-wide event", society_id=None
+    )
+    return e1, e2, eg
+
+
+def test_diagnostics_events_scoped_for_tenant_admin(client, two_socs):
+    """A tenant admin sees only its own society's events + NULL
+    system-wide events — never another society's."""
+    e1, e2, eg = _seed_events(two_socs["sid1"], two_socs["sid2"])
+    r = client.get(
+        "/api/v1/diagnostics/events", headers=two_socs["h_admin1"]
+    )
+    assert r.status_code == 200
+    msgs = {e["message"] for e in r.json()["events"]}
+    assert "soc1 event" in msgs
+    assert "system-wide event" in msgs
+    assert "soc2 event" not in msgs
+
+
+def test_diagnostics_events_operator_sees_all(client, two_socs):
+    """platform_operator sees every society's events."""
+    _seed_events(two_socs["sid1"], two_socs["sid2"])
+    r = client.get(
+        "/api/v1/diagnostics/events", headers=two_socs["h_operator"]
+    )
+    msgs = {e["message"] for e in r.json()["events"]}
+    assert {"soc1 event", "soc2 event", "system-wide event"} <= msgs
+
+
+def test_mark_events_seen_is_society_scoped(client, two_socs):
+    """A tenant admin can only mark its own society's events (and NULL
+    system-wide events) seen — marking another society's event is a
+    silent no-op for that id."""
+    e1, e2, eg = _seed_events(two_socs["sid1"], two_socs["sid2"])
+    # admin1 tries to mark all three — only its own + the system one
+    # should be marked.
+    r = client.post(
+        "/api/v1/diagnostics/events/seen",
+        json={"event_ids": [e1, e2, eg]},
+        headers=two_socs["h_admin1"],
+    )
+    assert r.status_code == 200
+    assert r.json()["marked_seen"] == 2  # e1 + eg, NOT e2
+
+    from app.services import operator_events
+
+    rows = {
+        e["id"]: e["seen"]
+        for e in operator_events.recent_events(limit=100)
+    }
+    assert rows[e1] == 1
+    assert rows[eg] == 1
+    assert rows[e2] == 0  # society 2's event untouched

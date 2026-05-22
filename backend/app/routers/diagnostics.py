@@ -64,10 +64,11 @@ def get_events(
         limit=limit, severity=severity, service=service,
         since_minutes=since_minutes, unseen_only=unseen_only,
     )
-    # Tenant scoping: a non-admin sees only events for their society or
-    # global ones. Admin sees all (and we accept that admin has
-    # cross-tenant reach per finding 001 — flagged for separate fix).
-    if user.get("role") != "admin":
+    # Finding 001: tenant scoping. Only the cross-tenant
+    # `platform_operator` sees every society's events. Every other
+    # role (incl. a tenant `admin`) sees only events for their own
+    # society plus society_id IS NULL system-wide events.
+    if user.get("role") != "platform_operator":
         own_sid = user.get("society_id")
         events = [e for e in events
                   if e.get("society_id") in (None, own_sid)]
@@ -83,7 +84,18 @@ def mark_events_seen(
     body: _MarkSeenBody,
     user: dict = Depends(current_user),
 ) -> dict:
-    n = operator_events.mark_seen(body.event_ids)
+    """Mark events seen. Finding 001 — society-scoped: a tenant user
+    can only mark events for their own society (or system-wide
+    society_id IS NULL events); the cross-tenant `platform_operator`
+    may mark any."""
+    if user.get("role") == "platform_operator":
+        n = operator_events.mark_seen(body.event_ids)
+    else:
+        n = operator_events.mark_seen(
+            body.event_ids,
+            society_id=user.get("society_id"),
+            scoped=True,
+        )
     return {"marked_seen": n}
 
 
