@@ -303,4 +303,100 @@ single file. Its essential contents are duplicated in this file (§4, §5,
 > leak) MUST be resolved before any second paying tenant is onboarded —
 > or the product's privacy claim breaks the first day customer #2 logs in.
 
+---
+
+## 12. Pending work — complete roadmap to "done"
+
+> Captured at pause-time. This section answers "what would I have to do
+> to ship this app?" The list is long because it's thorough — not because
+> the work is large. See the "ship-able line" near the end for what's
+> actually minimum for each milestone.
+
+### A. The 6 PRs you commissioned (architectural-correctness fixes)
+
+**This is the "code-complete for Serenity pre-pilot" scope.** ~5-7 days of focused work total.
+
+| PR | Finding | Scope | Time |
+|----|---------|-------|------|
+| **1** | Finding 001 — tenant-scoped admins | **In flight** — 8/11 leaks fixed, plus `platform_operator` role + `target_society` dep + seed migration. **Pending:** WebSocket per-society rooms (leak #9), migration 007, the WIP test file, full suite green | ~45 min |
+| **2** | Finding 006 — email webhook security | Shared-secret auth + `to:` domain allowlist + attachment-capture (currently dropped). 2 existing tests need rewriting | ~half day |
+| **3** | Finding 002 — orphan-work surfacing | New cron sub-job + GET endpoint that surfaces both gaps (deactivated assignees AND unrouted complaints). Option A = surface + notify, not auto-reassign | ~half day |
+| **4** | Finding 004 — delivery proof | `outbound_messages` table + `status_callback=` on Twilio sends + `/webhooks/twilio/status` endpoint. **Read receipts deliberately out of scope** — those need WhatsApp Business API which is a separate procurement track | ~2 days |
+| **5** | Finding 005 — dashboard photo + voice fallback | `image_urls` field in `ComplaintCreate`, image-upload UI in the create form, system thread message when voice TTS falls back to text | ~half day |
+| **6** | Finding 003 + D5 + society-name | Vertical-defaulted "complaint" vs "request" terminology (resolved server-side via `/auth/me`), un-hardcode "Nataraj (Admin)", show society name on dashboard | ~1 day |
+
+After these merge → **code-complete for Serenity pre-pilot.** That's what you originally commissioned.
+
+### B. Step 4 of the original commission (after PRs land)
+
+| Item | What | Time |
+|------|------|------|
+| Updated walkthrough | Walk the seeded dashboard, catch UX gaps not in the findings | ~half day |
+| Sravya testing | She uses the live app as a real user; you fix what she surfaces | iterative, days |
+| Pitch copy edits | Edit any line that promises delivery/read receipts, dashboard-photo upload, or email-with-photos. Findings 004/005/006 sections have verbatim safe-vs-unsafe wording | ~half day |
+
+### C. Genuine pre-pilot launch (Serenity housing society)
+
+| Item | What | Time |
+|------|------|------|
+| Per-society SLAs | Demo tenants have 3-min SLAs (for cron-testing); Palms has hours. Need realistic SLAs configured for Serenity | ~hour |
+| Sravya test pack | Documented test procedure for her | ~half day |
+| Brief Serenity | Customer onboarding conversation | ~hour |
+| Render/Supabase paid plan | Free tier won't survive a real pilot — services may have already been suspended for non-payment at pause-time | ops |
+
+### D. Hospital channel (Sunrise / Dr. Patil)
+
+| Item | What | Time |
+|------|------|------|
+| PR 6 must land first | Hospital staff vocabulary needs "request" not "complaint" before any non-Greenwood demo | (PR 6 above) |
+| Edit Sunrise config | Based on what was heard from Dr. Patil — real hospital categories, escalation chain | ~half day |
+| Hospital channel pitch | Dr. Patil follow-up | depends |
+
+### E. Bigger architectural items (genuinely large)
+
+| Item | What | Time / blocker |
+|------|------|----------------|
+| **BSP migration** | Switch from Twilio sandbox to an Indian BSP (MSG91 or Gupshup recommended in the 6-PR plan). Real Indian WhatsApp number, no `join shells-machinery` friction | ~1-3 days code |
+| **WhatsApp Business API approval** | For read receipts AND a verified production number. Facebook Business Manager verification of CARIMO | **2-6 weeks external approval lead time** — start this clock as a procurement track in parallel with the code work |
+| **Email channel live** | MX record at Hostinger + SendGrid Inbound Parse config. **Must come AFTER PR 2** (Finding 006 webhook security) or it's an open spam endpoint | ~30 min ops |
+
+### F. Production-hardening (longer-term)
+
+| Item | Notes |
+|------|-------|
+| UptimeRobot `/health` monitoring | Free-tier Render spin-down false-positives |
+| Sentry error tracking | Replaces operator_events for actual production error monitoring |
+| `auth_sessions` Redis cache | TODO already in code; perf at scale |
+| Multi-society onboarding flow | Currently demo tenants are seeded; real onboarding needs a UI |
+| Resident portal | Deferred from Foundation decision C; could re-open |
+| Stripe / payments | If charging per-society |
+
+### The "ship-able" line
+
+| After... | You can show this to... |
+|----------|-------------------------|
+| After **A** (6 PRs) + a quick **B** walkthrough | Sravya for usability testing |
+| After **A** + **C** | Serenity housing society for pre-pilot |
+| After **A** + **C** + **D** + **PR 6 landed** | Dr. Patil for hospital demo |
+| After **A** + **D** + **E** (BSP + WA Business + email) | A real Indian residential-society customer with a real phone number, real email channel, real delivery proof |
+| After **A** + **D** + **E** + **F** | A second paying tenant — but **Finding 001 (admin cross-tenant leak) MUST be closed before then**, which PR 1 does |
+
+### Reframe — how to read this list honestly
+
+> Most of column **A** is fixable in a week. Most of column **E** is
+> fixable in a month and is waiting on Facebook's approval, not your
+> effort. Most of column **F** is the difference between "10 customers"
+> and "1000 customers" — it's nice-to-have until you have growth
+> pressure. The honest minimum-viable-pre-pilot scope is just
+> **A + B + a paid Render/Supabase plan**. That's about a week of work,
+> not the months it looks like from this list. The list is long because
+> it's thorough, not because the work is large.
+
+### The two things nobody else can do for you (calendar, not code)
+
+1. **Column D decision** — does Sunrise hospital come before, after, or instead of Serenity housing? This is product strategy; affects which findings are P0.
+2. **Column E procurement clock** — the WhatsApp Business API approval delay (2-6 wk) only starts when you submit. Even on full pause, you could file the application; the clock runs while you sleep.
+
+---
+
 End of resume notes. Good luck, future-self.
