@@ -427,3 +427,51 @@ def test_mark_events_seen_is_society_scoped(client, two_socs):
     assert rows[e1] == 1
     assert rows[eg] == 1
     assert rows[e2] == 0  # society 2's event untouched
+
+
+# --------------------------------------------------------------------
+# leak #9 — WS /api/v1/ws — per-society broadcast rooms
+# --------------------------------------------------------------------
+def _token(client, email: str) -> str:
+    r = client.post(
+        "/api/v1/auth/login", json={"email": email, "password": PW}
+    )
+    assert r.status_code == 200, r.text
+    return r.json()["access_token"]
+
+
+def test_ws_requires_auth(client, two_socs):
+    """An unauthenticated /ws connection is rejected."""
+    import pytest as _pt
+    from starlette.websockets import WebSocketDisconnect
+
+    with _pt.raises(WebSocketDisconnect):
+        with client.websocket_connect("/api/v1/ws") as ws:
+            ws.receive_text()
+
+
+def test_ws_only_receives_own_society_events(client, two_socs):
+    """A society-1 WS client must NOT receive a society-2 complaint
+    event, but MUST receive its own society's events."""
+    t1 = _token(client, "admin1@s.com")
+    with client.websocket_connect(f"/api/v1/ws?token={t1}") as ws1:
+        # a complaint created in society 2 must NOT reach ws1
+        _make(client, two_socs["h_admin2"], "soc2 ws leak test")
+        # a complaint created in society 1 MUST reach ws1
+        _make(client, two_socs["h_admin1"], "soc1 ws event")
+
+        evt = ws1.receive_json()
+        assert evt["event"] == "complaint.created"
+        # the first (and only) event ws1 sees is the society-1 one
+        assert evt["payload"]["raw_text"] == "soc1 ws event"
+
+
+def test_ws_operator_receives_all_societies(client, two_socs):
+    """A platform_operator WS client receives events from every
+    society."""
+    top = _token(client, "admin@aibuildcare.app")
+    with client.websocket_connect(f"/api/v1/ws?token={top}") as wso:
+        _make(client, two_socs["h_admin2"], "soc2 op-visible")
+        evt = wso.receive_json()
+        assert evt["event"] == "complaint.created"
+        assert evt["payload"]["raw_text"] == "soc2 op-visible"
