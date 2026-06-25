@@ -69,7 +69,7 @@ three independent failure modes.
 | | Location |
 |---|---|
 | Tool (Python script) | `scripts/backup_supabase.py` in the repo |
-| **Output** | **`E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_<UTC-timestamp>.sql`** — confirmed run at pause-time: **14,613 rows / 20 tables / 6.49 MB**. Contains demo tenants (sid 100-103) AND Palms real pilot data (sid=1). |
+| **Output** | **`E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_20260625_054948.sql`** — confirmed run at pause-time: **14,613 rows / 20 tables / 6.49 MB**. Contains demo tenants (sid 100-103) AND Palms real pilot data (sid=1). |
 | To restore | `psql <any_postgres_url> < aibuildcare_supabase_*.sql` — replays schema + data into any Postgres |
 
 ---
@@ -217,7 +217,7 @@ Read this carefully before assuming anything still works on resume.
 
 ### The data dump WAS completed at pause-time
 
-`E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_<UTC-timestamp>.sql`
+`E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_20260625_054948.sql`
 — 14,613 rows / 20 tables / 6.49 MB, includes both demo tenants
 (sid 100-103) AND Palms real pilot data (sid=1).
 
