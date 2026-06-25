@@ -64,12 +64,13 @@ three independent failure modes.
 | Filled-in secrets (if you completed the task) | should be at `E:\CARIMO\_SECRETS\aibuildcare_RENDER_env_<date>.md` |
 | Local `.env` (dev defaults, includes some keys) | `E:\CARIMO\aibuildcare_backup\repo\.env` |
 
-### Supabase data backup (status: see §7)
+### Supabase data backup ✅ COMPLETE
 
 | | Location |
 |---|---|
 | Tool (Python script) | `scripts/backup_supabase.py` in the repo |
-| Output (if you ran it) | `E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_<UTC-timestamp>.sql` |
+| **Output** | **`E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_<UTC-timestamp>.sql`** — confirmed run at pause-time: **14,613 rows / 20 tables / 6.49 MB**. Contains demo tenants (sid 100-103) AND Palms real pilot data (sid=1). |
+| To restore | `psql <any_postgres_url> < aibuildcare_supabase_*.sql` — replays schema + data into any Postgres |
 
 ---
 
@@ -214,18 +215,18 @@ Read this carefully before assuming anything still works on resume.
 | **Twilio sandbox** | Free, doesn't expire. Join code may need re-joining. |
 | **Anthropic / SendGrid / Sarvam / Cloudflare R2 accounts** | Account-specific; check each console. Keys may need rotating. |
 
-### Did you complete the data dump?
+### The data dump WAS completed at pause-time
 
-If you ran `scripts/backup_supabase.py` while access was still valid, the
-`.sql` file is at:
 `E:\CARIMO\aibuildcare_backup\aibuildcare_supabase_<UTC-timestamp>.sql`
+— 14,613 rows / 20 tables / 6.49 MB, includes both demo tenants
+(sid 100-103) AND Palms real pilot data (sid=1).
 
-If NOT, and Supabase access has lapsed, recovery options are:
-1. Restore Supabase account access (pay outstanding balance)
-2. Then re-run `scripts/backup_supabase.py`
-3. If account permanently lost, the seeded demo data can be **regenerated**
-   by re-running `scripts/backup_supabase.py` after a new seed — the Part 1-3
-   generator is deterministic. Palms real pilot data CANNOT be regenerated.
+To restore: `psql <any_postgres_url> < aibuildcare_supabase_*.sql`
+replays schema + data into any Postgres deployment.
+
+If E drive itself is later lost (the dump's single point of failure
+right now), see §8 Path C — demo data is regenerable from the
+seeder, but Palms data CANNOT be regenerated.
 
 ---
 
